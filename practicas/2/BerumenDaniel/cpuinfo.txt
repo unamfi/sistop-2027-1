@@ -1,0 +1,66 @@
+
+Nombre de host:                            MSI
+Nombre del sistema operativo:              Microsoft Windows 11 Home Single Language
+Versi¢n del sistema operativo:             10.0.26200 N/D Compilaci¢n 26200
+Fabricante del sistema operativo:          Microsoft Corporation
+Configuraci¢n del sistema operativo:       Estaci¢n de trabajo independiente
+Tipo de compilaci¢n del sistema operativo: Multiprocessor Free
+Propietario registrado:                    ---
+Organizaci¢n registrada:                   
+Id. del producto:                          ---
+Fecha de instalaci¢n original:             22/12/2025, 01:40:15 a. m.
+Tiempo de arranque del sistema:            16/08/2026, 10:00:11 p. m.
+Fabricante del sistema:                    Micro-Star International Co., Ltd.
+Modelo del sistema:                        Katana 15 B13VFK
+Tipo de sistema:                           x64-based PC
+Procesadores:                              1 Procesadores instalados.
+                                           [01]: Intel64 Family 6 Model 186 Stepping 2 GenuineIntel ~2400 Mhz
+Versi¢n del BIOS:                          American Megatrends International, .--, 18/04/2023
+Directorio de Windows:                     C:\WINDOWS
+Directorio de sistema:                     C:\WINDOWS\system32
+Dispositivo de arranque:                   \Device\HarddiskVolume1
+Configuraci¢n regional del sistema:        es;Espa¤ol (internacional)
+Idioma de entrada:                         es-mx;Espa¤ol (M‚xico)
+Zona horaria:                              (UTC-06:00) Guadalajara, Ciudad de M‚xico, Monterrey
+Memoria f¡sica total:                      16,087 MB
+Memoria f¡sica disponible:                 7,478 MB
+Memoria virtual: tama¤o m ximo:            17,111 MB
+Memoria virtual: disponible:               6,848 MB
+Memoria virtual: en uso:                   10,263 MB
+Ubicaciones de archivos de p gina:         C:\pagefile.sys
+Dominio:                                   WORKGROUP
+Servidor de inicio de sesi¢n:              \\MSI
+Revisiones:                                5 revisi¢n(es) instaladas.
+                                           [01]: KB5120708
+                                           [02]: KB5054156
+                                           [03]: KB5071430
+                                           [04]: KB5121003
+                                           [05]: KB5123304
+Tarjetas de red:                           3 Tarjetas de interfaz de red instaladas.
+                                           [01]: Realtek PCIe GbE Family Controller
+                                                 Nombre de conexi¢n: Ethernet 2
+                                                 Estado:             Medios desconectados
+                                           [02]: Intel(R) Wi-Fi 6 AX201 160MHz
+                                                 ---
+                                           [03]: Bluetooth Device (Personal Area Network)
+                                                 Nombre de conexi¢n: Conexi¢n de red Bluetooth
+                                                 Estado:             Medios desconectados
+Seguridad basada en virtualizaci¢n:        Estado:ÿEn ejecuci¢n
+                                           Propiedades de seguridad requeridas:
+                                                 Compatibilidad con la virtualizaci¢n base
+                                           Propiedades de seguridad disponibles:
+                                                 Compatibilidad con la virtualizaci¢n base
+                                                 Arranque seguro
+                                                 Protecci¢n de DMA
+                                                 C¢digo UEFI de solo lectura
+                                                 SMM Security Mitigations 1.0
+                                                 Control de ejecuci¢n basado en el modo
+                                                 Virtualizaci¢n de APIC
+                                           Services Configured:
+                                                 Integridad del c¢digo reforzada por el hipervisor
+                                           Services Running:
+                                                 Integridad del c¢digo reforzada por el hipervisor
+                                           App Control for Business policy: Forzado
+                                           App Control for Business user mode policy: Desactivado
+                                           Caracter¡sticas de seguridad habilitadas:
+Requisitos Hyper-V:                        Se detect¢ un hipervisor. No se mostrar n las caracter¡sticas necesarias para Hyper-V.
