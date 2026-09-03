@@ -1,0 +1,2 @@
+Nombre del sistema operativo:              Microsoft Windows 10 Pro
+Procesador(es):                            1 Procesadores instalados.
