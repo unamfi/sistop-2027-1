@@ -6,14 +6,14 @@
   la última sección de este archivo (/Criterios de evaluación grupal/
   y /por el docente/).
 
-  |------------+------------------------------------------------------------------------------------------------+----------------------------------------------+---------+--------------+--------------|
-  |    *Fecha* | *Tema*                                                                                         | *Integrantes*                                | *Video* | *Documentos* | *Evaluación* |
-  |------------+------------------------------------------------------------------------------------------------+----------------------------------------------+---------+--------------+--------------|
-  | 2026.09.21 | Microkernel y exokernel                                                                        | Beatriz Almaraz  y Edson Barragán            |         |              |              |
-  | 2026.09.28 | Unikernels                                                                                     | Johan Cipriano y Sebastián Ladrón de Guevara |         |              |              |
-  | 2026.09.28 |                                                                                                | Francisco Hernández y Itzcóatl Ayax Arcos    |         |              |              |
-  | 2026.10.05 | Sistemas operativos inmutables: actualizaciones atómicas, snapshots y recuperación ante fallos | Angel Escobar y Francisco Corona             |         |              |              |
-  |------------+------------------------------------------------------------------------------------------------+----------------------------------------------+---------+--------------+--------------|
+  |------------+------------------------------------------------------------------------------------------------+----------------------------------------------+---------+-------------------------+------------------------------|
+  |    *Fecha* | *Tema*                                                                                         | *Integrantes*                                | *Video* | *Documentos*            | *Evaluación*                 |
+  |------------+------------------------------------------------------------------------------------------------+----------------------------------------------+---------+-------------------------+------------------------------|
+  | 2026.09.21 | Microkernel y exokernel                                                                        | Beatriz Almaraz  y Edson Barragán            | [[https://youtu.be/AaJzA_5Gd7U][Video]]   | [[./AlmarazBeatriz-BarraganEdson/Investigaci%C3%B3n_Almaraz_Barrag%C3%A1n.pdf][Documento]], [[./AlmarazBeatriz-BarraganEdson/Presentaci%C3%B3n%20Sistop2027-1.pdf][Presentación]] | [[https://encuestas.iiec.unam.mx/732141][Encuesta para los compañeros]] |
+  | 2026.09.28 | Unikernels                                                                                     | Johan Cipriano y Sebastián Ladrón de Guevara |         |                         |                              |
+  | 2026.09.28 |                                                                                                | Francisco Hernández y Itzcóatl Ayax Arcos    |         |                         |                              |
+  | 2026.10.05 | Sistemas operativos inmutables: actualizaciones atómicas, snapshots y recuperación ante fallos | Angel Escobar y Francisco Corona             |         |                         |                              |
+  |------------+------------------------------------------------------------------------------------------------+----------------------------------------------+---------+-------------------------+------------------------------|
   #+TBLFM: 
 
 * Rúbrica de evaluación
