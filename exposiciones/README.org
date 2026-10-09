@@ -41,6 +41,8 @@
   que los compañeros presentes en la sesión evalúen cuantitativamente y
   de forma anónima.
 
+  *¡Ojo!* [[https://dontpastetheai.com/student/es][No me entregues un trabajo de la IA, por favor]].
+
 ** Criterios de evaluación grupal
 
    - Originalidad
