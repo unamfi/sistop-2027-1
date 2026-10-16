@@ -1,0 +1,11 @@
+Problema seleccionado: De gatos y ratones
+
+Lenguaje y entorno de desarrollo: Desarrolle esta solución en Python 3, utilizando únicamente bibliotecas estándar como threading y time, por lo que no es necesario instalar nada adicional
+
+Estrategia de sincronización:
+
+Utilice el patrón apagador junto con un semáforo llamado cuarto. El primer animal de una categoría que llega bloquea el semáforo, y los demás de su misma categoría pueden entrar sin esperar. El último en salir libera el semáforo para que la otra categoría pueda ingresar. De esta forma pueden comer varios gatos juntos o varios ratones juntos
+
+También use un semáforo, que limita la cantidad de animales que comen simultáneamente. Además, una lista de platos libres, protegida con un mutex, asigna un plato específico a cada animal para evitar que dos utilicen el mismo.
+
+Utilice un torniquete por el que debe pasar todo animal antes de intentar entrar. Si un ratón llega mientras comen los gatos, queda esperando en el torniquete y evita que ingresen gatos nuevos. Los gatos que ya estaban comiendo terminan, el semáforo se libera y los ratones pueden entrar
