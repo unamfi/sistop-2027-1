@@ -1,0 +1,17 @@
+Problema elegido: El servidor Web.
+
+Lenguaje y entorno:Python 3, usando hilos con el modulo threading.
+
+Como ejecutar: Solo se necesita tener Python 3 instalado y se ejecuta con:python3 servidor_web.py
+
+Estrategia de sincronizacion: Use un semaforo para que los trabajadores esperen cuando no hay solicitudes.
+Cuando el jefe agrega una nueva solicitud, despierta a uno de los trabajadores.
+Tambien use un Lock para proteger la cola compartida y evitar que dos hilos
+tomen la misma solicitud al mismo tiempo.
+
+Refinamiento: Agregue un registro final donde se muestra que trabajador atendio cada pagina
+y cuanto tiempo tardo.
+
+Dudas o cosas que podrian mejorar:La simulacion usa tiempos aleatorios para representar cuanto tarda cada
+solicitud. Tambien creo que se podria mejorar haciendo que las solicitudes lleguen de una forma
+mas parecida a un servidor real.
