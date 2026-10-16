@@ -1,0 +1,13 @@
+Soy Miguel Angel Morales Estrada.
+
+Resolví el problema De gatos y ratones, lo hice solo. 
+
+Lo realicé en python, solo dando doble click en el ejecutable debe correr. Adjunto el ejecutable y el código.
+
+Realicé una mezcla de torniquete, multiplex y apagador. 
+
+Me parece que no realicé ningún refinamiento. 
+
+Disculpe por realizar la entrega tarde, es que vivo solo, trabajo y estudio, y no logré organizarme bien para concluirla en forma. :c 
+Espero me lo pueda tomar en cuenta con alguna calificación.
+
