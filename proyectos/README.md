@@ -1,3 +1,3 @@
 # Proyectos
 
-<!-- 1. [Revisión de MiComputer](./1/README.md) (Entrega: 20xx.xx.xx) -->
+1. [(Micro) sistema de archivos multihilos](./1/README.md) (Entrega: 2026.11.19)
