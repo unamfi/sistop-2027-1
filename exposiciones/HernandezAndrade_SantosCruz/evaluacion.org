@@ -1,0 +1,59 @@
+#+title: Evaluación de la exposición
+#+author: Gunnar Wolf
+
+* Los sistemas operativos y la computación cuántica
+
+- Tema presentado por :: Lair Abraham Santos y Miguel Ángel Hernández
+- Calificación global :: 8.53
+
+|------------------------+------+--------------------+------+---------|
+| Evaluación  compañeros | Peso | Evaluación docente | Peso | *Total* |
+|------------------------+------+--------------------+------+---------|
+|                     10 |  0.3 |                7.9 |  0.7 |    8.53 |
+|------------------------+------+--------------------+------+---------|
+#+TBLFM: @2$5=$1*$2+$3*$4;f-2
+
+* Evaluación grupal
+
+|              | 1 | 2 | 3 | 4 | 5 |  Total |
+|--------------+---+---+---+---+---+--------|
+| Originalidad | 0 | 0 | 0 | 0 | 3 | 100.00 |
+| Nivel        | 0 | 0 | 0 | 0 | 3 | 100.00 |
+| Relevancia   | 0 | 0 | 0 | 0 | 3 | 100.00 |
+| Claridad     | 0 | 0 | 0 | 0 | 3 | 100.00 |
+| Presencia    | 0 | 0 | 0 | 0 | 3 | 100.00 |
+|--------------+---+---+---+---+---+--------|
+|              |   |   |   |   |   | 100.00 |
+#+TBLFM: @2$7..@6$7=10 * (0.2*$2 + 0.4*$3 + 0.6*$4 + 0.8*$5 + $6 ) / vsum($2..$6); f-2::@7$7=vmean(@2$7..@6$7); f-2
+
+** Comentarios de los compañeros
+
+
+
+* Evaluación por parte del docente
+
+| *Aspecto*                          | *Peso* | *Evaluación* | *Puntos* |
+|------------------------------------+--------+--------------+----------|
+| Contenido técnico y profundidad    |    0.3 |            7 |      2.1 |
+| Fuentes bibliográficas             |   0.15 |           10 |      1.5 |
+| Organización                       |   0.15 |           10 |      1.5 |
+| Comunicación oral y uso del tiempo |   0.25 |            7 |     1.75 |
+| Uso de recursos visuales           |   0.15 |            7 |     1.05 |
+|------------------------------------+--------+--------------+----------|
+| *Global*                           |        |              |     7.90 |
+#+TBLFM: @<<$4..@>>$4=$2*$3::$4=vsum(@<<..@>>);f-2
+
+** Comentarios
+- La exposición fue un poco corta. ¡El tema da para mucho más! 🙁
+- Presentación bastante sobrecargada de texto, con texto pequeño y bajo
+  contraste. Pero más relevante aún: Parte importante de los temas leídos
+  directamente de la presentación... eso da mala imagen 😕
+- El tema es complejo, interesante, y sin duda da para mucho más
+  exploración.
+  - Faltó por completo un componente práctico/aplicado a la exposición
+    desarrollada.
+  - Sé que suena complicado, pero hoy en día hay varios entornos
+    disponibles donde se puede programar, ya sea sobre una simulación de
+    estado cuántico, o incluso con qbits reales
+  - No presentaron posibles aplicaciones, por qué se presenta como
+    relevante este salto.
