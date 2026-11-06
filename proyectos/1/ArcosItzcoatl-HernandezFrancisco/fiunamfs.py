@@ -129,3 +129,27 @@ class FiUnamFS:
                                     modificacion, indice))
 
         return archivos
+
+
+    def exportar_archivo(self, nombre: str, destino: str | Path) -> Path:
+        """Copia un archivo de FiUnamFS hacia la computadora."""
+
+        archivos = self.listar_archivos()
+        archivo = next((a for a in archivos if a.nombre == nombre), None)
+
+        if archivo is None:
+            raise ErrorFiUnamFS(f"No existe el archivo: {nombre}")
+
+        ruta_salida = Path(destino)
+
+        with self.ruta.open("rb") as imagen:
+            imagen.seek(archivo.cluster_inicial * TAMANIO_CLUSTER)
+            contenido = imagen.read(archivo.tamanio)
+
+        if len(contenido) != archivo.tamanio:
+            raise ErrorFiUnamFS("No se pudo leer el contenido completo")
+
+        with ruta_salida.open("xb") as salida:
+            salida.write(contenido)
+
+        return ruta_salida

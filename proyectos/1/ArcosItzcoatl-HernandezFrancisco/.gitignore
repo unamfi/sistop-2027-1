@@ -11,3 +11,6 @@ __pycache__/
 .venv/
 .vscode/
 .idea/
+
+# Archivos exportados durante las pruebas
+salidas/
