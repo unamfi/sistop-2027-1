@@ -153,6 +153,31 @@ class EntradaDirectorio:
         return max(1, -(-self.tamano // tam_cluster))   # división hacia arriba
 
 
+def validar_nombre(nombre):
+    """Los nombres deben ser US-ASCII de 7 bits y caber en 15 caracteres."""
+    if not nombre:
+        raise ErrorFiUnamFS("el nombre no puede estar vacío")
+    if not all(32 <= ord(c) < 127 for c in nombre):
+        raise ErrorFiUnamFS(f"'{nombre}' tiene caracteres fuera de US-ASCII")
+    if len(nombre) > LONG_MAX_NOMBRE:
+        raise ErrorFiUnamFS(
+            f"'{nombre}' excede {LONG_MAX_NOMBRE} caracteres; usa otro nombre")
+    if nombre.encode("ascii") == NOMBRE_VACIO:
+        raise ErrorFiUnamFS("ese nombre está reservado para entradas vacías")
+
+
+def crear_entrada(nombre, tamano, cluster, creacion, modificacion):
+    """Arma los 64 bytes de una entrada de archivo."""
+    entrada = bytearray(TAM_ENTRADA)
+    entrada[ENT_TIPO[0]:ENT_TIPO[1]] = TIPO_ARCHIVO
+    entrada[ENT_NOMBRE[0]:ENT_NOMBRE[1]] = nombre.encode("ascii").ljust(LONG_MAX_NOMBRE, b" ")
+    entrada[ENT_TAMANO[0]:ENT_TAMANO[1]] = de_entero(tamano)
+    entrada[ENT_CLUSTER[0]:ENT_CLUSTER[1]] = de_entero(cluster)
+    entrada[ENT_CREACION[0]:ENT_CREACION[1]] = creacion
+    entrada[ENT_MODIFICACION[0]:ENT_MODIFICACION[1]] = modificacion
+    return bytes(entrada)
+
+
 def nombre_local(nombre):
     """Adapta un nombre de FiUnamFS para el sistema local: reemplaza los
     caracteres que Windows no admite en nombres de archivo."""
@@ -187,6 +212,8 @@ class FiUnamFS:
             self.archivo.close()
             raise
         self.tam_cluster = self.superbloque.tam_cluster
+        # El área de datos empieza justo después del directorio
+        self.inicio_datos = CLUSTER_INICIO_DIR + self.superbloque.clusters_dir
 
     def leer_clusters(self, inicio, cantidad=1):
         """Lee `cantidad` clusters consecutivos a partir de `inicio`."""
@@ -215,7 +242,7 @@ class FiUnamFS:
         """Contenido de un archivo: al ser asignación contigua, basta con leer
         `tamano` bytes a partir de su cluster inicial."""
         fin = entrada.cluster * self.tam_cluster + entrada.tamano
-        if entrada.cluster < CLUSTER_INICIO_DATOS or fin > self.superbloque.clusters_total * self.tam_cluster:
+        if entrada.cluster < self.inicio_datos or fin > self.superbloque.clusters_total * self.tam_cluster:
             raise ErrorFiUnamFS(f"'{entrada.nombre}' apunta fuera del área de datos")
         self.archivo.seek(entrada.cluster * self.tam_cluster)
         return self.archivo.read(entrada.tamano)
@@ -233,6 +260,65 @@ class FiUnamFS:
         with open(destino, "wb") as salida:
             salida.write(self.leer_archivo(entrada))
         return destino
+
+    def escribir_entrada(self, indice, datos):
+        """Sobrescribe la entrada `indice` del directorio con 64 bytes."""
+        self.archivo.seek(CLUSTER_INICIO_DIR * self.tam_cluster + indice * TAM_ENTRADA)
+        self.archivo.write(datos)
+        self.archivo.flush()
+
+    def buscar_espacio(self, clusters_necesarios):
+        """Primer hueco contiguo de clusters libres que alcance (first fit).
+
+        Como toda la información de los archivos está en el directorio, el
+        mapa de ocupación se reconstruye a partir de las entradas.
+        """
+        total = self.superbloque.clusters_total
+        ocupado = [False] * total
+        for e in self.listar():
+            for c in range(e.cluster, min(total, e.cluster + e.clusters_ocupados(self.tam_cluster))):
+                ocupado[c] = True
+
+        inicio_hueco, longitud = None, 0
+        for c in range(self.inicio_datos, total):
+            if ocupado[c]:
+                inicio_hueco, longitud = None, 0
+                continue
+            if inicio_hueco is None:
+                inicio_hueco = c
+            longitud += 1
+            if longitud == clusters_necesarios:
+                return inicio_hueco
+        return None
+
+    def copiar_hacia(self, ruta_local, nombre=None):
+        """Copia un archivo del sistema local a FiUnamFS y devuelve su entrada."""
+        nombre = nombre or os.path.basename(ruta_local)
+        validar_nombre(nombre)
+        if self.buscar(nombre) is not None:
+            raise ErrorFiUnamFS(f"ya existe '{nombre}' en el volumen")
+
+        with open(ruta_local, "rb") as origen:
+            contenido = origen.read()
+
+        libre = next((e for e in self.leer_directorio() if e.vacia), None)
+        if libre is None:
+            raise ErrorFiUnamFS("el directorio está lleno")
+
+        clusters = max(1, -(-len(contenido) // self.tam_cluster))
+        inicio = self.buscar_espacio(clusters)
+        if inicio is None:
+            raise ErrorFiUnamFS(
+                f"no hay {clusters} clusters contiguos libres para '{nombre}'")
+
+        # Primero los datos y al final la entrada: si algo falla a la mitad,
+        # el directorio no queda apuntando a datos incompletos.
+        self.archivo.seek(inicio * self.tam_cluster)
+        self.archivo.write(contenido)
+        ahora = datetime.now().strftime(FORMATO_FECHA).encode("ascii")
+        self.escribir_entrada(libre.indice,
+                              crear_entrada(nombre, len(contenido), inicio, ahora, ahora))
+        return self.buscar(nombre)
 
     def cerrar(self):
         self.archivo.close()
@@ -283,8 +369,10 @@ if __name__ == "__main__":
     # Modo de prueba mientras se construye la interfaz:
     #   fiunamfs.py <imagen>                       lista el volumen
     #   fiunamfs.py <imagen> extraer <nombre> [destino]
+    #   fiunamfs.py <imagen> copiar <archivo local> [nombre en FiUnamFS]
     if len(sys.argv) < 2:
-        print(f"Uso: {sys.argv[0]} <imagen.img> [extraer <nombre> [destino]]",
+        print(f"Uso: {sys.argv[0]} <imagen.img> "
+              "[extraer <nombre> [destino] | copiar <archivo> [nombre]]",
               file=sys.stderr)
         sys.exit(1)
     try:
@@ -292,6 +380,10 @@ if __name__ == "__main__":
             if len(sys.argv) >= 4 and sys.argv[2] == "extraer":
                 destino = sys.argv[4] if len(sys.argv) > 4 else "."
                 print(f"Copiado a {volumen.extraer(sys.argv[3], destino)}")
+            elif len(sys.argv) >= 4 and sys.argv[2] == "copiar":
+                nombre = sys.argv[4] if len(sys.argv) > 4 else None
+                e = volumen.copiar_hacia(sys.argv[3], nombre)
+                print(f"'{e.nombre}' copiado: {e.tamano} bytes desde el cluster {e.cluster}")
             else:
                 imprimir_listado(volumen)
     except (OSError, ErrorFiUnamFS) as error:

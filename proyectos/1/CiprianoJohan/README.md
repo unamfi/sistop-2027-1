@@ -6,7 +6,7 @@
 Programa para listar, extraer, copiar y eliminar archivos dentro de una
 imagen del sistema de archivos `FiUnamFS` (versión 27-1).
 
->-.- En desarrollo. La documentación completa (uso, sincronización entre
+>  En desarrollo. La documentación completa (uso, sincronización entre
 > hilos y ejemplos) se agrega al terminar la implementación.
 
 ## Entorno
@@ -18,14 +18,19 @@ imagen del sistema de archivos `FiUnamFS` (versión 27-1).
 
 | Archivo        | Contenido                                           |
 |----------------|-----------------------------------------------------|
-| `fiunamfs.py`  | Especificación de FiUnamFS: constantes, superbloque (lectura y validación), entradas del directorio, listado, extracción de archivos, acceso a la imagen y formateo |
+| `fiunamfs.py`  | Especificación de FiUnamFS: constantes, superbloque (lectura y validación), entradas del directorio, listado, extracción de archivos, copia hacia el volumen (asignación contigua *first fit*), acceso a la imagen y formateo |
 
 ## Uso (provisional)
 
 Mientras se termina la interfaz, se puede listar el contenido de una imagen
-y copiar archivos de ella hacia el equipo:
+y copiar archivos entre ella y el equipo:
 
 ```bash
 python fiunamfs.py ../fiunamfs.img                          # listar
 python fiunamfs.py ../fiunamfs.img extraer README.org extraidos/
+python fiunamfs.py prueba.img copiar notas.txt               # equipo → FiUnamFS
 ```
+
+Al copiar hacia FiUnamFS se valida que el nombre sea US-ASCII de máximo 15
+caracteres y que no exista ya; el archivo se coloca en el primer hueco de
+clusters contiguos que alcance.
