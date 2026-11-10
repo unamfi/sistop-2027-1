@@ -1,0 +1,393 @@
+* 1. De gatos y ratones
+** Alejandro Cortes
+- Documentación :: [[./CortesAlejandro/gatos_y_ratones.txt][gatos_y_ratones.txt]]
+- Archivos :: [[./CortesAlejandro/gatos_y_ratones.py][gatos_y_ratones.py]]
+- Interfaz implementada :: Bitácora de eventos a la terminal
+- Comentarios ::
+  - Buena implementación básica de la lógica para compartir el cuarto
+    - Sin embargo, no incluyes la lógica necesaria para las capturas (¡aún
+      si buscas nunca llamarla, es parte de los requisitos!)
+- Calificación :: 8
+
+** Angel Morales
+- Documentación :: [[./AngelMorales/De_gatos_y_ratones.txt][De_gatos_y_ratones.txt]]
+- Archivos :: [[./AngelMorales/De_gatos_y_ratones.exe][De_gatos_y_ratones.exe]], [[./AngelMorales/De_gatos_y_ratones.py][De_gatos_y_ratones.py]]
+- Interfaz implementada :: Bitácora de eventos a la terminal
+- Comentarios ::
+  - En un repositorio, debes incluir tus programas fuente — ¡no tus
+    /artefactos binarios/!
+    - El ejemplo justo que les dí en la práctica 4 mencionaba que debían
+      usar un archivo =.gitignore= para omitir los archivos =*.exe= de sus
+      /commits/.
+    - Considéralo incluso desde el punto de vista de la seguridad
+      informática: Si yo como docente ejecuto /código arbitrario compilado/
+      que me envían mis alumnos... ¿qué evita que me mandes código diseñado
+      para robar o alterar mi información? 😈
+  - Buen “giro” de personalidad el darle nombre a cada uno de los animales
+    😃
+  - Buena implementación básica de la lógica para compartir el cuarto
+    - Sin embargo, no incluyes la lógica necesaria para las capturas (¡aún
+      si buscas nunca llamarla, es parte de los requisitos!)
+- Calificación :: 8
+
+** Jessica Estefani Perez Baez
+- Documentación :: [[./PerezBaezJessicaEstefani/README.md][README.md]]
+- Archivos :: [[./PerezBaezJessicaEstefani/Makefile][Makefile]], [[./PerezBaezJessicaEstefani/gatos_ratones.c][gatos_ratones.c]]
+- Interfaz implementada :: Bitácora de eventos a la terminal
+- Comentarios ::
+  - ¡Muy bien por salirse de /mi/ modelo mental y utilizar otro lenguaje de
+    programación! (C)
+    - Ojo... Tendrían que haber agregado =*.exe= (especificado en tu
+      =Makefile=) al =.gitignore=, porque Java requiere ser compilado
+  - Tu código es denso y difícil de leer
+    - ¡Ni un sólo comentario!
+    - ¡Ni un espacio tipo “parrafeo” para ayudar visualmente a la lectura y
+      comprensión de las secciones del código!
+    - Muchas construcciones compuestas en una sóla línea que dificultan la
+      lectura
+    - ¡código con =goto= y etiqueta =fin:=! Uy, eso sí hace muchos años que
+      no lo veía... [[https://homepages.cwi.nl/~storm/teaching/reader/Dijkstra68.pdf][¡El Dr. Djikstra debe estar revolcándose en su tumba!]]
+  - Buena implementación básica de la lógica para compartir el cuarto
+    - Sin embargo, no incluyes la lógica necesaria para las capturas (¡aún
+      si buscas nunca llamarla, es parte de los requisitos!)
+- Calificación :: 7
+
+* 2. Intersección de caminos
+** Giovanni Casas
+- Documentación :: [[./CasasGiovanni/README.txt][README.txt]]
+- Archivos :: [[./CasasGiovanni/tarea1.py][tarea1.py]]
+- Interfaz implementada :: Bitácora de eventos a la terminal
+- Comentarios ::
+  - Interfaz usuario sin “cariño” 🙁
+  - ¡Muy bien por utilizar un LLM para entender, inspirarte — y continuar
+    el desarrollo por tu cuenta! 😃
+    - ¡Y me parece excelente! El que des crédito a que Claude te _ayudó_, y
+      que muestres comprensión y elaboración sobre de éste, hace
+      completamente válido su uso.
+  - La lógica de tus funciones “Autos_Horizontales()” y
+    “Autos_Verticales()” es muy similar, ¿cierto?
+    - Supongo que copiaste una a la otra, porque en tu línea 51 imprimes la
+      línea equivocada — ¡parece que sólo implementas horizontal!
+    - En vez de duplicar lógica, vale la pena considerar el *principio DRY*
+      (Don't Repeat Yourself): ¿Podrías /parametrizar/ parte del
+      funcionamiento de tu código, por ejemplo, asignando =mut=mutex_Hoz= o
+      =mut=mutex_Ver=?
+  - Me parece una implementación buena e ingeniosa... ¡muy distinta de lo
+    que acostumbro ver! Es la primera vez que veo resuelto esto
+    utilizando una exclusión categórica 😃
+  - No puedo darte el 10, porque no implementas los requisitos
+    completos. Pero me parece una muy buena respuesta parcial 🙃
+- Calificación :: 8
+
+** Sebastian Ladron De Guevara Castro
+- Documentación :: [[./LadronDeGuevaraCastroSebastian/README.md][README.md]]
+- Archivos :: [[./LadronDeGuevaraCastroSebastian/cruce.py][cruce.py]]
+- Interfaz implementada :: Simulación textual presentando un mapa visual
+- Comentarios ::
+  - Muy bien, un semáforo por cuadrante para representar al cruce
+    - Buena idea el =multiplex= para evitar que se usen los 4 cuadrantes
+      para evitar bloqueos mutuos 😃
+  - ¡Muy buena también la implementación del =SemaforoJusto=! Me parece una
+    implementación un poco /pesada/ para hablar de la inanición, pero es
+    completamente válida.
+  - Tu implementación es muy completa y correcta. ¡Felicidades! 😃
+    - Me parece muy bien que no únicamente discutas los refinamientos sino
+      que las /posibles mejoras/. Y me parece muy pertinente el sentido de
+      las decisiones que tomaste.
+- Calificación :: 10
+
+* 3. El elevador
+** Carlos Fernando Carballido, Raul Haziel Sanchez
+- Documentación :: [[./CarballidoCarlosFernando-SanchezRaulHaziel/README.md][README.md]], [[./CarballidoCarlosFernando-SanchezRaulHaziel/Tarea1_Elevador_CarballidoCarrillo_SánchezSoperanes.pdf][Tarea1_Elevador_CarballidoCarrillo_SánchezSoperanes.pdf]]
+- Archivos :: [[./CarballidoCarlosFernando-SanchezRaulHaziel/EjercicioElevador.java][EjercicioElevador.java]]
+- Interfaz implementada :: Bitácora de eventos a la terminal
+- Comentarios ::
+  - Interfaz usuario sin “cariño” 🙁
+  - ¡Muy bien por salirse de /mi/ modelo mental y utilizar otro lenguaje de
+    programación! (Java)
+    - Ojo... Tendrían que haber agregado =*.class= al =.gitignore=, porque
+      Java requiere ser compilado
+  - ¿Por qué /dos archivos de documentación/ diferentes? ¿A cuál debería
+    hacerle caso?
+  - Buena implementación; código limpio y claro de seguir (¡y eso que es
+    Java! 😉)
+    - Comprendo el asunto que mencionan en la sección 7 de su documentación
+      respecto a que los bloques =catch= estén vacíos... es muy habitual
+      ver esto en Java, y es muy correcto que lo mencionen.
+      - Les sugiero acostumbrarse a *siempre* hacer algo al /cachar/ una
+        excepción, aunque sea mandar un mensaje a pantalla. Si no la
+        piensan y se acostumbran a utilizar =Catch(...) {}=, se les puede
+        quedar como mala práctica... y termina generando código con más
+        problemas, no menos.
+- Calificación :: 9
+
+* 4. Los alumnos y el asesor
+** Ángel López
+- Documentación :: [[./LópezÁngel/README.md][README.md]]
+- Archivos :: [[./LópezÁngel/asesor.py][asesor.py]]
+- Interfaz implementada :: Bitácora de eventos a la terminal
+- Comentarios ::
+  - Interfaz usuario sin “cariño” 🙁
+  - Implementación muy buena y completa
+  - Particularmente, muy interesante cómo resuelves la condición de
+    finalización
+- Calificación :: 10
+
+** Carlos Martinez
+- Documentación :: [[./MartinezCarlos/README.md][README.md]]
+- Archivos :: [[./MartinezCarlos/barbero_dormilon.py][barbero_dormilon.py]]
+- Interfaz implementada :: Bitácora de eventos a la terminal
+- Comentarios ::
+  - Interfaz usuario sin “cariño” 🙁
+  - ¡Muy bien por encontrar que mi problema de /los alumnos y el asesor/ es
+    el problema clásico de /el barbero dormilón/ 😃 pero... ¡yo pedí la
+    resolución de /los alumnos y el asesor/
+    - ...No mencionas que hayas /encontrado/ esta similitud. ¿Por qué?
+  - La documentación que presentas es realmente mínima, no permite entender
+    tus procesos mentales
+  - La implementación es correcta, la documentación también... Pero supongo
+    que te falta dar crédito al LLM, ¿no?
+    - Empleas lenguaje y conceptos que se /salen/ claramente de lo
+      esperable.
+- Calificación :: 8.5
+
+* 5. El servidor Web
+** Beatriz Almaraz, Edson Barragan
+- Documentación :: [[./AlmarazBeatriz-BarraganEdson/README.md][README.md]]
+- Archivos :: [[./AlmarazBeatriz-BarraganEdson/include/Request.h][Request.h]], [[./AlmarazBeatriz-BarraganEdson/include/Trabajador.h][Trabajador.h]], [[./AlmarazBeatriz-BarraganEdson/include/server.h][server.h]], [[./AlmarazBeatriz-BarraganEdson/include/stats.h][stats.h]], [[./AlmarazBeatriz-BarraganEdson/main.cpp][main.cpp]], [[./AlmarazBeatriz-BarraganEdson/src/server.cpp][server.cpp]], [[./AlmarazBeatriz-BarraganEdson/src/stats.cpp][stats.cpp]], [[./AlmarazBeatriz-BarraganEdson/src/trabajador.cpp][trabajador.cpp]]
+- Interfaz implementada :: Bitácora de eventos a la terminal
+- Comentarios ::
+  - ¡Muy bien por salirse de /mi/ modelo mental y utilizar otro lenguaje de
+    programación! (C++)
+    - Ojo... Tendrían que haber agregado al directorio =build=
+      (especificado en su documentación) al =.gitignore=, porque el programa
+      requiere ser compilado
+    - ¡Guau! ¡Primera vez que veo que alguien elige C++ buscando una
+      solución “menos talachuda” 😉 ¡Supongo que cada cabeza, un mundo! 🙃
+    - Es buena práctica en general, pero me llama la atención que activen
+      el reporte de todos los /warnings/ de compilación (=-Wall -Wextra
+      -pedantic=). ¿Qué los lleva a hacerlo, la mera costumbre?
+  - El programa no compila tal como lo subieron 🙁
+    - Le falta una declaración importante: ¿qué es la variable =statistics=
+      que utilizan al final de =src/server.cpp=?
+    - Basta con declarar la variable:
+      #+begin_src diff
+	diff --git a/tareas/1/AlmarazBeatriz-BarraganEdson/src/server.cpp b/tareas/1/AlmarazBeatriz-BarraganEdson/src/server.cpp
+	index 72db4b4..c677bc7 100644
+	--- a/tareas/1/AlmarazBeatriz-BarraganEdson/src/server.cpp
+	+++ b/tareas/1/AlmarazBeatriz-BarraganEdson/src/server.cpp
+	@@ -1,5 +1,7 @@
+	 #include "../include/server.h"
+	   
+	+Statistics statistics;
+	+
+	 Server::Server()
+	     : shuttingDown(false) {
+	 }
+      #+end_src
+  - Buena implementación, cumple con el planteamiento solicitado.
+- Calificación :: 8.5
+
+** Ayax Arcos
+- Documentación :: [[./ArcosAyax/Documentacion.txt][Documentacion.txt]]
+- Archivos :: [[./ArcosAyax/servidor_web.py][servidor_web.py]]
+- Interfaz implementada :: Bitácora de eventos a la terminal
+- Comentarios ::
+  - Buena implementación, cubre correctamente la situación planteada
+  - Código fácil de entender
+- Calificación :: 10
+
+** José Bermejo, Rebeca Hernandez
+- Documentación :: [[./BermejoFlores-HernandezReyes/README.md][README.md]]
+- Archivos :: [[./BermejoFlores-HernandezReyes/servidor.py][servidor.py]]
+- Interfaz implementada :: Bitácora de eventos a la terminal
+- Comentarios ::
+  - La creación y comunicación entre hilos jefe =boss_process()= y
+    trabajadores =Worker= está bien
+    - Pero yo habría esperado que el hilo jefe /atendiera a solicitudes/
+      que vinieran de /otro lado/ (que podría ser el mismo hilo primario) y
+      las reenviara a cada uno de los =Worker=.
+- Calificación :: 9
+
+** Francisco Corona, Angel Escobar
+- Documentación :: [[./CoronaFrancisco-EscobarAngel/README.md][README.md]]
+- Archivos :: [[./CoronaFrancisco-EscobarAngel/servidor_web.py][servidor_web.py]]
+- Interfaz implementada :: Bitácora de eventos a la terminal
+- Comentarios ::
+  - Buena implementación, cubre correctamente la situación planteada
+  - El código es correcto y fácil de entender. Sin embargo, no tienen ni un
+    sólo comentario, ni “parrafeo” entre partes de las funciones. Es más
+    difícil (¡hasta mentalmente!) de leer. ¡Piensen en los programadores
+    del futuro que tendrán que mantener su código!
+    - Respecto a su duda: es correcto que el jefe sea el hilo principal,
+      aunque sería más /lo esperable/ que las conexiones llegaran de un
+      hilo aparte.
+- Calificación :: 9
+
+** Miguel Hernandez, Lair Santos
+- Documentación :: [[./HernandezMiguel_SantosLair/Documentacion_Tarea1.pdf][Documentacion_Tarea1.pdf]]
+- Archivos :: [[./HernandezMiguel_SantosLair/tarea_1_hernandez_santos.py][tarea_1_hernandez_santos.py]]
+- Interfaz implementada :: Bitácora de eventos a la terminal
+- Comentarios ::
+  - Muy buena descripción de la situación en su documentación.
+  - Si entiendo correctamente, la información de contabilidad centralizada
+    es presentada únicamente al terminar de atenderla cada hilo. No se está
+    acumulando / centralizando este reporte, que es lo que pediría el
+    /refinamiento/.
+- Calificación :: 9
+
+** Francisco Hernandez
+- Documentación :: [[./HernandezFrancisco/README.md][README.md]], [[./HernandezFrancisco/Reporte_Servidor_Web.pdf][Reporte_Servidor_Web.pdf]]
+- Archivos :: [[./HernandezFrancisco/servidor_web.py][servidor_web.py]]
+- Interfaz implementada :: GUI (interfaz gráfica) con tkinter
+- Comentarios ::
+  - ¡Excelente interfaz usuario! 😃 Muy bonita conceptualización para
+    desplegar cómo se van atendiendo las solicitudes
+    - Muy buena tu idea de poner un botón para “lanzar 5 solicitudes” al
+      mismo tiempo, para poder apreciar una mayor carga
+    - Tal vez sería buena adición poner un botón adicional de “generar
+      carga aleatoria”, que vaya creando una nueva petición cada /x/
+      tiempo.
+    - ¡Incluso más! Si le puedes variar el intervalo, podrías ir probando
+      diferentes niveles de saturación del servicio... 😃
+  - Me parece interesante tu idea de permitir que los pendientes se
+    atiendan al cerrar, creando un hilo adicional para “mantener viva” a la
+    interfaz gráfica. ¡Bien!
+  - Muy buen uso de la variable de condición. Como les dije en clase, es
+    una excelente herramienta para expresar cuestiones de sincronización
+    con datos más complejos de los que se “dejan representar” fácilmente
+    con semáforos.
+  - Ahora bien... Puedes ver que el programa es excelente hasta aquí. Lo
+    que queda en falta es... que declares el uso de un LLM, ¿no te parece?
+    - Desde cuestiones estilísticas, algunas construcciones elaboradas,
+      etc. ¡Claro! Tú “guiaste” a tu LLM mediante prompts para lograr un
+      producto muy pulido — y eso tiene su valor, sin duda
+    - Pero no busques /lucirte/ con la salida del LLM... ¡y mucho menos sin
+      verificarla!
+      - Por ejemplo, una documentación *tan extensa* (14 páginas) y
+        empleando una plantilla LaTeX tan cuidada... pero no cachaste que
+        en la página dejaste las instrucciones para agregar una captura de
+        pantalla en la página 8 :-Þ
+      - Las pruebas que citas como Sección 7 resultan completamente
+        innecesarias para este tipo de ejercicio, y revelan su contenido
+        sintético...
+      - .... ¿O me equivoco?
+  - Tu entrega fácilmente merecería el 10... si hubieras declarado haber
+    utilizado ayuda generativa.
+- Calificación :: 8
+
+** Daniel Peralta Rojas
+- Documentación :: [[./PeraltaRojasDaniel/Tarea1 Peralta Rojas Daniel.pdf][Tarea1 Peralta Rojas Daniel.pdf]]
+- Archivos :: [[./PeraltaRojasDaniel/ejercicio_servidor_web.py][ejercicio_servidor_web.py]]
+- Interfaz implementada :: Bitácora de eventos a la terminal
+- Comentarios ::
+  - El programa, tal como lo presentas, no funciona
+    - Pero el mismo Python te explica por qué:
+      #+begin_src text
+	$ python3 PeraltaRojasDaniel/ejercicio_servidor_web.py 
+	Traceback (most recent call last):
+	  File "/home/gwolf/vcs/sistop-2027-1/tareas/1/PeraltaRojasDaniel/ejercicio_servidor_web.py", line 17, in <module>
+	    for i in range(num_trabajadores):
+	                   ^^^^^^^^^^^^^^^^
+	NameError: name 'num_trabajadores' is not defined. Did you mean: 'k_trabajadores'?
+      #+end_src
+    - Haciendo lo que sugiere Python mismo, el programa funciona
+      correctamente... ¿Qué pasó ahí? 😉
+  - La creación y comunicación entre hilos jefe =jefe()= y trabajadores
+    =trabajador()= está bien
+    - Pero yo habría esperado que el hilo jefe /atendiera a solicitudes/
+      que vinieran de /otro lado/ (que podría ser el mismo hilo primario) y
+      las reenviara a cada uno de los =trabajador()=.
+- Calificación :: 8
+
+* 6. El cruce del río
+** Rodrigo Casas, Paris Malfavon
+- Documentación :: [[./CasasRodrigo-MalfavonParis/README.md][README.md]]
+- Archivos :: [[./CasasRodrigo-MalfavonParis/T1.py][T1.py]]
+- Interfaz implementada :: Bitácora de eventos a la terminal
+- Comentarios ::
+  - Interfaz usuario sin “cariño” 🙁
+  - La implementación es correcta, la documentación también... Pero supongo
+    que les falta dar crédito al LLM, ¿no?
+    - Emplean lenguaje, conceptos, y prácticas de programación que se
+      /salen/ claramente de lo esperable.
+- Calificación :: 8
+
+* 7. Santa Claus
+** Daniel Berumen
+- Documentación :: [[./BerumenDaniel/README.md][README.md]]
+- Archivos :: [[./BerumenDaniel/santa.py][santa.py]]
+- Interfaz implementada ::
+- Comentarios ::
+  - La implementación es correcta, la documentación también... Pero supongo
+    que te falta dar crédito al LLM, ¿no?
+    - Si bien no se nota /tanto/ en el programa entregado, pues usaste
+      únicamente las construcciones vistas en clase (aunque sigue bastante
+      el estilo autogenerado), el =README.md= es claramente generado.
+- Calificación :: 8
+
+** Johan Cipriano
+- Documentación :: [[./CiprianoJohan/README.md][README.md]]
+- Archivos :: [[./CiprianoJohan/santa.py][santa.py]]
+- Interfaz implementada :: Bitácora de eventos a la terminal, con
+  información posicional de número de renos y elfos presentes, llave de
+  color, e icono ilustrativo.
+- Comentarios ::
+  - Tu documentación es la copia textual de mi práctica #1. ¿Y eso? 🙁
+  - La interfaz usuario es probablemente la mejor que he recibido para este
+    proyecto. ¡Muy bien!
+  - La implementación es correcta, la documentación también... Pero supongo
+    que te falta dar crédito al LLM, ¿no?
+    - Empleas lenguaje, conceptos, y prácticas de programación que se
+      /salen/ claramente de lo esperable.
+    - Me gustaría /mucho/ conocer tus prompts, ver cómo es que
+      especificaste el problema.
+- Calificación :: 8
+
+** Carlos Gonzalez
+- Documentación :: [[./GonzalezCarlos/Tarea1.txt][Tarea1.txt]]
+- Archivos :: [[./GonzalezCarlos/Tarea1.py][Tarea1.py]]
+- Interfaz implementada :: Bitácora de eventos a la terminal
+- Comentarios ::
+  - Muy bien, identificados todos los patrones e interacciones necesarios.
+  - Hay un /muy pequeño/ error de sintaxis: un dedazo que cometiste en la
+    línea 33, en que puede haberte faltado una =n= o sobrado un =\=. Python
+    se queja al evaluar la cadena de texto: =SyntaxWarning: "\A" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\A"? A raw string is also an option.=
+    - No afecta a la funcionalidad.
+  - Me llamó la atención al principio que todos los elfos terminan su
+    atención antes de que vuelva el primero de los renos
+    - Esto se explica porque en =renos()= tienes un
+      =time.sleep(random.uniform(0.1, 1.0)=, y en =elfo()= no.
+    - Si copias esta línea a =elfo()=, el comportamiento es –como lo
+      esperaba– de intercalamiento.
+- Calificación :: 9
+
+** Kevin Rivera
+- Documentación :: [[./KevinRivera/README.md][README.md]]
+- Archivos :: [[./KevinRivera/__pycache__/santa_claus.cpython-314.pyc][santa_claus.cpython-314.pyc]], [[./KevinRivera/santa_claus.py][santa_claus.py]], [[./KevinRivera/test_santa.py][test_santa.py]]
+- Interfaz implementada :: Bitácora de eventos a la terminal, facilitando
+  la lectura con colores por tipo de actor
+- Comentarios ::
+  - La implementación es correcta, la documentación también... Pero supongo
+    que te falta dar crédito al LLM, ¿no?
+    - Empleas lenguaje, conceptos, y prácticas de programación que se
+      /salen/ claramente de lo esperable.
+    - Incluso el =README.md= es claramente generado. ¡Por lo menos tómate
+      la molestia de editar tú mismo lo que está en tu idioma nativo! 🙁
+  - En la ejecución normal, llamó mucho a mi atención que se presenta
+    primero todo el intercambio de flujo con los elfos, y sólo después de
+    eso llegan los renos
+    - Esto ocurre porque, en la línea 168, demoras a todos los renos un
+      mínimo de 4 segundos. Claro, si permites que vayan llegando desde el
+      principio, el comportamiento es correcto.
+  - Ojo... ¿Te fijaste que tu commit incluye al archivo
+    =__pycache__/santa_claus.cpython-314.pyc=?
+    - Tendrías que haber agregado
+      =*.pyc= o =__pycache__= al =.gitignore=, porque al ser importado desde
+      =test_santa.py=, =santa_claus.py= es compilado a bytecode...  y no
+      necesariamente es una compilación /compartible/ con gente que utilice
+      otras arquitecturas o versiones
+    - Además... no es el código desarrollado por ti. No sirve ningún
+      propósito real, y simplemente ocupa espacio para todos en el
+      repositorio 🙁
+- Calificación :: 7.5

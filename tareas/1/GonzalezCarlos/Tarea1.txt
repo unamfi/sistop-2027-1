@@ -1,0 +1,21 @@
+Problema resuelto: Santa Claus
+
+Se desarrollo en Python, se puede ejecutar en Linux, macOS y Windows. Se debe tener instalado 
+Python 3, no requiere de librerías externas.
+- Descargar el archivo
+- Abrir una terminal
+- Ejecutar mediante el comando
+ "python3 Tarea1.py"
+
+
+Usamos mutex para proteger los contadores, grupoElfos para agrupar elfos de 3 en 3, y semáforos 
+en cero (semSanta, semRenos, semElfos) para que Santa duerma y al despertar priorice a los 9 
+renos sobre los elfos.
+
+Se implementó el refinamiento de prioridad estrcita para los renos sobre los elfos. 
+Garantizando que cuando los 9 renos han regresado de sus vacaciones, se les de atención 
+prioritaría para asegurar el inicio del viaje del trineo por encima de las solicitudes 
+pendientes de los elfos.
+
+Como mejora, cambiaría los time.sleep() aleatorios por barreras o colas seguras, y reemplazaría 
+el while True infinito por un límite de rondas para que el programa termine de forma limpia.

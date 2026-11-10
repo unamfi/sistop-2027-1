@@ -1,0 +1,60 @@
+#+title: Evaluación de la exposición
+#+author: Gunnar Wolf
+
+* Sistemas operativos inmutables: Actualizaciones atómicas, snapshots y recuperación ante fallos
+
+- Tema presentado por :: Angel Emiliano Escobar y Francisco Corona
+- Calificación global :: ####
+
+|------------------------+------+--------------------+------+---------|
+| Evaluación  compañeros | Peso | Evaluación docente | Peso | *Total* |
+|------------------------+------+--------------------+------+---------|
+|                   9.93 |  0.3 |                9.1 |  0.7 |    9.35 |
+|------------------------+------+--------------------+------+---------|
+#+TBLFM: @2$5=$1*$2+$3*$4;f-2
+
+* Evaluación grupal
+
+|              | 1 | 2 | 3 | 4 | 5 |  Total |
+|--------------+---+---+---+---+---+--------|
+| Originalidad | 0 | 0 | 0 | 1 | 5 |  96.67 |
+| Nivel        | 0 | 0 | 0 | 0 | 6 | 100.00 |
+| Relevancia   | 0 | 0 | 0 | 0 | 6 | 100.00 |
+| Claridad     | 0 | 0 | 0 | 0 | 6 | 100.00 |
+| Presencia    | 0 | 0 | 0 | 0 | 6 | 100.00 |
+|--------------+---+---+---+---+---+--------|
+|              |   |   |   |   |   |  99.33 |
+#+TBLFM: @2$7..@6$7=10 * (0.2*$2 + 0.4*$3 + 0.6*$4 + 0.8*$5 + $6 ) / vsum($2..$6); f-2::@7$7=vmean(@2$7..@6$7); f-2
+
+** Comentarios de los compañeros
+
+- Buena explicación
+
+* Evaluación por parte del docente
+
+| *Aspecto*                          | *Peso* | *Evaluación* | *Puntos* |
+|------------------------------------+--------+--------------+----------|
+| Contenido técnico y profundidad    |    0.3 |           10 |       3. |
+| Fuentes bibliográficas             |   0.15 |           10 |      1.5 |
+| Organización                       |   0.15 |            7 |     1.05 |
+| Comunicación oral y uso del tiempo |   0.25 |           10 |      2.5 |
+| Uso de recursos visuales           |   0.15 |            7 |     1.05 |
+|------------------------------------+--------+--------------+----------|
+| *Global*                           |        |              |     9.10 |
+#+TBLFM: @<<$4..@>>$4=$2*$3::$4=vsum(@<<..@>>);f-2
+
+** Comentarios
+- El tema es complicado, y cubrieron varios de los puntos más
+  importantes. Pero me parece que faltó un punto fundamental, que es
+  explicar /qué problemática resuelve/
+  - Y particularmente... si se presenta como un salto evoutivo a partir de
+    donde estamos, ¿por qué no es adoptado por todos los sistemas
+    operativos? Vamos... ¡Es indudablemente mejor! ¿o... tal vez no?
+- Me parece que, al intentar abordar un tema tan amplio como este,
+  mantuvieron la exposición dentro de los límites de lo /enunciativo/ más
+  que de hacer una explicación técnica detallada (el /qué/ vs. el /cómo/).
+- Pero hicieron un muy buen trabajo de incorporar todos los puntos
+  adicionales que les di a su trabajo previo. ¡Execelente! 😃
+- El manejo de la voz, muy bien. Si bien se nota que están /siguiendo un
+  script/, y se notan los /puntos de corte/ de edición del video, se siente
+  que es un tema preparado y que trabajaron bien.

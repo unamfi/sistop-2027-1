@@ -15,10 +15,10 @@ mecanismos de sincronización. Les recuerdo que están disponibles los
 Ahora toca el turno a ustedes: Van a resolver un problema de programación
 concurrente en el que sea necesario emplear algún mecanismo de sincronización.
 
-<!-- ## Calificaciones y comentarios -->
+## Calificaciones y comentarios
 
-<!-- Pueden [consultar aquí las calificaciones y comentarios a sus -->
-<!-- soluciones](./revision.org). -->
+Pueden [consultar aquí las calificaciones y comentarios a sus
+soluciones](./revision.org).
 
 ## Los problemas
 

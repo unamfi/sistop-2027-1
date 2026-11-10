@@ -1,0 +1,74 @@
+#+title: Evaluación de la exposición
+#+author: Gunnar Wolf
+
+* Planificadores de CPU con IA en Linux
+
+- Tema presentado por :: Carlos Fernando Carballido y Raúl Haziel Sánchez
+- Calificación global :: 9.03
+
+|------------------------+------+--------------------+------+---------|
+| Evaluación  compañeros | Peso | Evaluación docente | Peso | *Total* |
+|------------------------+------+--------------------+------+---------|
+|                   9.93 |  0.3 |               8.65 |  0.7 |    9.03 |
+|------------------------+------+--------------------+------+---------|
+#+TBLFM: @2$5=$1*$2+$3*$4;f-2
+
+* Evaluación grupal
+
+|              | 1 | 2 | 3 | 4 | 5 |  Total |
+|--------------+---+---+---+---+---+--------|
+| Originalidad | 0 | 0 | 0 | 1 | 5 |  96.67 |
+| Nivel        | 0 | 0 | 0 | 0 | 6 | 100.00 |
+| Relevancia   | 0 | 0 | 0 | 0 | 6 | 100.00 |
+| Claridad     | 0 | 0 | 0 | 0 | 6 | 100.00 |
+| Presencia    | 0 | 0 | 0 | 0 | 6 | 100.00 |
+|--------------+---+---+---+---+---+--------|
+|              |   |   |   |   |   |  99.33 |
+#+TBLFM: @2$7..@6$7=10 * (0.2*$2 + 0.4*$3 + 0.6*$4 + 0.8*$5 + $6 ) / vsum($2..$6); f-2::@7$7=vmean(@2$7..@6$7); f-2
+
+** Comentarios de los compañeros
+
+- Me gustó la manera en la que explican, buenosejemplos
+
+* Evaluación por parte del docente
+
+| *Aspecto*                          | *Peso* | *Evaluación* | *Puntos* |
+|------------------------------------+--------+--------------+----------|
+| Contenido técnico y profundidad    |    0.3 |            7 |      2.1 |
+| Fuentes bibliográficas             |   0.15 |           10 |      1.5 |
+| Organización                       |   0.15 |           10 |      1.5 |
+| Comunicación oral y uso del tiempo |   0.25 |           10 |      2.5 |
+| Uso de recursos visuales           |   0.15 |            7 |     1.05 |
+|------------------------------------+--------+--------------+----------|
+| *Global*                           |        |              |     8.65 |
+#+TBLFM: @<<$4..@>>$4=$2*$3::$4=vsum(@<<..@>>);f-2
+
+** Comentarios
+- Una corrección fundamental: No es el sistema operativo el que decide si
+  una carga va para CPU, GPU o NPU
+  - Lo determina el *programador* al compilar para una u otra arquitectura
+  - No son intercambiables
+- Otro detalle importante: La planificación del CPU no es ajustada por LLM
+  - Sí puede ser ajustada por las /observaciones/ de un gestor de patrones
+    de IA, sea en CPU, en GPU o en NPU. Pero es a partir de /datos
+    numéricos/, no de /análisis de lenguaje natural/.
+- Lo que describen del programa basado en BPF que reemplaza a CFS o a
+  EEVDF... ¿No suena a un comportamiento de microkernel?
+  - No lo es. BPF corre completamente dentro del kernel. Pero es, como
+    ustedes justo lo dicen, como un /aduanero que no deja pasar código
+    peligroso/. Es una máquina virtual verificada /de lo más interesante/
+    (¡y compleja!)
+- Habría quedado _muy bien_ que mostraran ejemplos en ejecución de lo que
+  están describiendo 🙁
+- Ummmm... Lo que describen hacia los 13:00 no me parece realista: Los
+  diferentes planificadores no van a llevar /nunca/ a una diferencia de
+  velocidad visible externamente tan grande como lo que reportan. Podría
+  ser que el /tiempo empleado/ para la planificación sea menor... pero no
+  el de ejecución
+- No me he asomado a detalle a los conceptos específicos que mencionan,
+  pero... Siempre ha sido posible modificar al planificador /en vivo/ sin
+  tener que recompilar módulos o reiniciar el kernel. Un ejemplo que
+  recuerdo de hace ya más de una década son los /gobernadores/ empleados
+  para estimar el mejor perfil energético de un sistema (que ya fueron
+  reemplazados... pero eran un componente de planificación que podía
+  cambiarse y extenderse en tiempo de ejecución)

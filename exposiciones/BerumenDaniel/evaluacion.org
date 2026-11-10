@@ -1,0 +1,58 @@
+#+title: Evaluación de la exposición
+#+author: Gunnar Wolf
+
+* Sistemas operativos en misiones espaciales
+
+- Tema presentado por :: Daniel Berumen
+- Calificación global :: 9.84
+
+|------------------------+------+--------------------+------+---------|
+| Evaluación  compañeros | Peso | Evaluación docente | Peso | *Total* |
+|------------------------+------+--------------------+------+---------|
+|                  9.467 |  0.3 |                 10 |  0.7 |    9.84 |
+|------------------------+------+--------------------+------+---------|
+#+TBLFM: @2$5=$1*$2+$3*$4;f-2
+
+* Evaluación grupal
+
+|              | 1 | 2 | 3 | 4 | 5 |  Total |
+|--------------+---+---+---+---+---+--------|
+| Originalidad | 0 | 0 | 0 | 0 | 3 | 100.00 |
+| Nivel        | 0 | 0 | 0 | 1 | 2 |  93.33 |
+| Relevancia   | 0 | 0 | 0 | 1 | 2 |  93.33 |
+| Claridad     | 0 | 0 | 0 | 1 | 2 |  93.33 |
+| Presencia    | 0 | 0 | 0 | 1 | 2 |  93.33 |
+|--------------+---+---+---+---+---+--------|
+|              |   |   |   |   |   |  94.67 |
+#+TBLFM: @2$7..@6$7=10 * (0.2*$2 + 0.4*$3 + 0.6*$4 + 0.8*$5 + $6 ) / vsum($2..$6); f-2::@7$7=vmean(@2$7..@6$7); f-2
+
+** Comentarios de los compañeros
+
+- Execelente tema
+
+* Evaluación por parte del docente
+
+| *Aspecto*                          | *Peso* | *Evaluación* | *Puntos* |
+|------------------------------------+--------+--------------+----------|
+| Contenido técnico y profundidad    |    0.3 |           10 |       3. |
+| Fuentes bibliográficas             |   0.15 |           10 |      1.5 |
+| Organización                       |   0.15 |           10 |      1.5 |
+| Comunicación oral y uso del tiempo |   0.25 |           10 |      2.5 |
+| Uso de recursos visuales           |   0.15 |           10 |      1.5 |
+|------------------------------------+--------+--------------+----------|
+| *Global*                           |        |              |    10.00 |
+#+TBLFM: @<<$4..@>>$4=$2*$3::$4=vsum(@<<..@>>);f-2
+
+** Comentarios
+
+- ¡Excelente exposición!
+  - Muy buen ritmo
+  - Se nota que es material que te interesa y que buscaste comprender antes
+    de transmitirlo a tus compañeros
+  - Y... por lo menos a mi me parece excelente que incluyas a tu imagen
+    narrando la exposición. Me parece que logras atrapar mucho mejor la
+    atención de tu público. ¡Bien! 😃
+- El texto que desarrollaste está bien desarrollado.
+  - ¡Algunos esquemas están sin duda mejores que varios míos! 🙂
+  - Pero vas realmente /mucho más a profundidad/ de lo esperado: Les pido
+    un documento de /unas 4 páginas/... y me entregas uno de más de 40 😰
