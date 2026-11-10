@@ -1,0 +1,7 @@
+# Python
+__pycache__/
+*.pyc
+
+# Imágenes del sistema de archivos y archivos extraídos durante las pruebas
+*.img
+extraidos/

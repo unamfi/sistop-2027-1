@@ -1,0 +1,21 @@
+# Proyecto 1: (Micro) sistema de archivos multihilos — FiUnamFS
+
+**Autor:** Cipriano Amador Johan Tadeo
+**Materia:** Sistemas Operativos 2027-1, Facultad de Ingeniería, UNAM
+
+Programa para listar, extraer, copiar y eliminar archivos dentro de una
+imagen del sistema de archivos `FiUnamFS` (versión 27-1).
+
+> -.- En desarrollo. La documentación completa (uso, sincronización entre
+> hilos y ejemplos) se agrega al terminar la implementación.
+
+## Entorno
+
+- Python 3.8 o superior (CPython)
+- Solo biblioteca estándar; no hay dependencias que instalar
+
+## Estructura
+
+| Archivo        | Contenido                                           |
+|----------------|-----------------------------------------------------|
+| `fiunamfs.py`  | Constantes de la especificación y conversión de enteros |
