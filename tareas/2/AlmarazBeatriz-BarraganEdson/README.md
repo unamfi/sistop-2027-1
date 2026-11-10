@@ -3,6 +3,7 @@
 **Materia:** Sistemas Operativos  
 **Integrantes:** Beatriz Almaraz y Edson Barragán  
 **Lenguaje:** C++
+**Fecha de entrega:** 10 de noviembre de 2026
 
 ## ¿De qué trata el programa?
 
@@ -86,5 +87,5 @@ De esta manera podemos revisar la información de varios archivos sin tener que 
 
 ## Conclusión
 
-Con esta tarea pudimos entender un poco mejor cómo se puede obtener información de los archivos y directorios mediante un programa en C++, utilizando conceptos revisados en clase, usamos funciones para recorrer carpetas y consultar sus propiedades, además de trabajar argumentos desde la propia terminal (sin una interfaz gráfica). Algo bastante importante a resaltar
+Con esta tarea pudimos entender un poco mejor cómo se puede obtener información de los archivos y directorios mediante un programa en C++, utilizando conceptos revisados en clase, usamos funciones para recorrer carpetas y consultar sus propiedades, además de trabajar argumentos desde la propia terminal (sin una interfaz gráfica). Algo bastante importante a resaltar es que, en la columna de modo, trabajamos con el modo octal crudo (ya que en terminales de linux tenemos otra forma de verlo como 'rwxr-xr-x'), y esa fue una de las dificultades durante el desarrollo de esta tarea.
 
