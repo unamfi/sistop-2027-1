@@ -144,7 +144,10 @@ class VolumenConcurrente:
     def _solicitar(self, operacion, *argumentos):
         solicitud = Solicitud(operacion, *argumentos)
         self._cola.put(solicitud)
-        solicitud.terminada.wait()
+        # Espera en intervalos cortos: en Windows una espera sin límite no se
+        # puede interrumpir con Ctrl+C
+        while not solicitud.terminada.wait(timeout=0.2):
+            pass
         if solicitud.error is not None:
             raise solicitud.error
         return solicitud.resultado
