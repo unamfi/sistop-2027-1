@@ -1,0 +1,66 @@
+#+title: Evaluación de la exposición
+#+author: Gunnar Wolf
+
+* Sistemas operativos para sistemas embebidos
+
+- Tema presentado por :: Rodrigo Casas y Paris Malfavon
+- Calificación global :: ####
+
+|------------------------+------+--------------------+------+---------|
+| Evaluación  compañeros | Peso | Evaluación docente | Peso | *Total* |
+|------------------------+------+--------------------+------+---------|
+| 9.486                  |  0.3 |               7.75 |  0.7 |    8.27 |
+|------------------------+------+--------------------+------+---------|
+| Entrega extemporánea   |      |                    |      |   6.616 |
+|------------------------+------+--------------------+------+---------|
+#+TBLFM: @2$5=$1*$2+$3*$4;f-2::@3$5=@2*0.8
+
+* Evaluación grupal
+
+|              |  1 |  2 |  3 |  4 |  5 | Total |
+|--------------+----+----+----+----+----+-------|
+| Originalidad |  0 |  0 |  0 |  4 |  3 | 88.57 |
+|        Nivel |  0 |  0 |  0 |  1 |  6 | 97.14 |
+|   Relevancia |  0 |  0 |  0 |  1 |  6 | 97.14 |
+|     Claridad |  0 |  0 |  0 |  1 |  6 | 97.14 |
+|    Presencia |  0 |  0 |  1 |  0 |  6 | 94.29 |
+|--------------+----+----+----+----+----+-------|
+|              |    |    |    |    |    | 94.86 |
+#+TBLFM: @2$7..@6$7=10 * (0.2*$2 + 0.4*$3 + 0.6*$4 + 0.8*$5 + $6 ) / vsum($2..$6); f-2::@7$7=vmean(@2$7..@6$7); f-2
+
+** Comentarios de los compañeros
+
+- Me pareció un tema interesante útil para quienes trabajaremos en un futuro con sistemas embedidos. Está bastante bien trabajada y clara la exposición. Como sugerencia, me hubiera gustado que cuidaran un poco más la estética de las imágenes (quitar fondos, que la diapositiva siga la misma corriente estética de las imágenes, etc), pero en geenral fue muy buna exposición.
+Intentar exponer sin leer seguido ayuda a la inmersión del espectador y a no sentir que se está haciendo una lectura sino una explicación
+
+* Evaluación por parte del docente
+
+| *Aspecto*                          | *Peso* | *Evaluación* | *Puntos* |
+|------------------------------------+--------+--------------+----------|
+| Contenido técnico y profundidad    |    0.3 |            7 |      2.1 |
+| Fuentes bibliográficas             |   0.15 |            4 |      0.6 |
+| Organización                       |   0.15 |           10 |      1.5 |
+| Comunicación oral y uso del tiempo |   0.25 |           10 |      2.5 |
+| Uso de recursos visuales           |   0.15 |            7 |     1.05 |
+|------------------------------------+--------+--------------+----------|
+| *Global*                           |        |              |     7.75 |
+#+TBLFM: @<<$4..@>>$4=$2*$3::$4=vsum(@<<..@>>);f-2
+
+** Comentarios
+- Buen ritmo y dicción, la presentación fue agradable de ver y seguir. Si
+  bien el texto en pantalla coincide a ratos con lo dicho, se ve que no lo
+  van siguiendo como “script”. ¡Bien! 😃
+- En la presentación se mantienenen completamente del lado del “qué es”, no
+  entran al componente práctico (“cómo se hace”).
+  - Si bien mencionan a Yocto y BuildRoot, no presentan ningún ejemplo de
+    su uso, ni que deje ver que se compenetraron con el tema como para
+    instalar alguno de estos proyectos o siguieron su documentación más
+    allá del “qué somos”
+- Hacia el principio de la presentación mencionaron que se utilizan
+  diversos sistemas operativos, y mencionaron como ejemplo a FreeRTOS y
+  Zephir. Sin embargo, no volvieron a asomarse a ellos: se centraron
+  únicamente en dos de las principales distribuciones de Linux.
+- En sus referencias: ¿Por qué dan crédito a “Amazon Web Services” al
+  referirse a la documentación de FreeRTOS? 🙂
+  - Utilizaron como referencia únicamente sitios Web, ninguna referencia
+    publicada 🙁
