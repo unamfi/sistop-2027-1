@@ -1,0 +1,5 @@
+# Artefactos de compilacion de C/C++
+build/
+*.o
+*.obj
+*.exe
