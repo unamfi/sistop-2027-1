@@ -17,7 +17,7 @@ FiUnamFS simula una unidad de almacenamiento de 1,440 KiB mediante un archivo bi
 
 El programa completo deberá permitir consultar, copiar, incorporar y eliminar archivos, además de utilizar hilos de ejecución y mecanismos de sincronización.
 
-Actualmente, la implementación permite validar imágenes FiUnamFS 27-1, consultar su directorio y exportar archivos hacia el sistema operativo sin modificar la imagen original.
+Actualmente, la implementación permite validar imágenes FiUnamFS 27-1, consultar su directorio, exportar archivos hacia el sistema operativo e importar archivos locales. Para las pruebas de escritura se utilizan imágenes de prueba, conservando la imagen original proporcionada por el profesor.
 
 ## 2. Estructura del sistema de archivos
 
@@ -41,11 +41,12 @@ El proyecto se encuentra dividido en los siguientes archivos:
 
 | Archivo | Función |
 |---|---|
-| `fiunamfs.py` | Lectura, validación del sistema de archivos y exportación |
-| `main.py` | Interfaz de consola para listar y extraer archivos |
+| `fiunamfs.py` | Lectura, validación, exportación e importación de archivos |
+| `main.py` | Interfaz de consola para listar, importar y exportar archivos |
 | `pruebas/crear_imagen_demo.py` | Generación de una imagen artificial |
 | `pruebas/test_lectura.py` | Pruebas de lectura y validación |
 | `pruebas/test_exportacion.py` | Pruebas de exportación e integridad |
+| `pruebas/test_importacion.py` | Pruebas de importación y asignación de espacio |
 | `.gitignore` | Exclusión de archivos temporales y de prueba |
 
 Esta organización mantiene la lógica del sistema de archivos separada de la interfaz de consola y las pruebas.
@@ -66,7 +67,7 @@ Durante la lectura se comprueban los nombres, las fechas, los límites de almace
 
 ### Exportación de archivos
 
-La exportación permite copiar un archivo almacenado en FiUnamFS hacia una carpeta de Windows.
+La exportación permite copiar un archivo almacenado en FiUnamFS hacia una carpeta de la computadora.
 
 Primero se localiza el archivo en el directorio. Después, a partir del cluster inicial y el tamaño registrado, se calcula su posición dentro de la imagen.
 
@@ -76,15 +77,31 @@ Finalmente, el contenido se escribe en un nuevo archivo utilizando el modo binar
 
 Durante esta operación, la imagen FiUnamFS se mantiene en modo de lectura.
 
+### Importación de archivos
+
+La importación permite incorporar archivos de la computadora al sistema FiUnamFS.
+
+Antes de realizar la escritura, el programa verifica que el archivo exista, que su nombre cumpla las restricciones del sistema y que no se encuentre registrado previamente en el directorio.
+
+Posteriormente, calcula la cantidad de clusters necesarios de acuerdo con el tamaño del archivo y busca una secuencia de clusters libres y contiguos.
+
+Una vez encontrado el espacio disponible, prepara los datos del archivo y una entrada de directorio de 64 bytes que contiene su nombre, tamaño, cluster inicial y fechas de creación y modificación.
+
+Para reducir el riesgo de corrupción, las modificaciones se realizan primero sobre una imagen temporal. Después de validar su estructura, esta reemplaza a la imagen de trabajo.
+
+Este procedimiento permite incorporar archivos sin sobrescribir los clusters utilizados por otros archivos existentes.
+
 ## 4. Ejecución del programa
 
-El proyecto utiliza Python y bibliotecas estándar del lenguaje.
+El proyecto utiliza Python y bibliotecas estándar del lenguaje, por lo que no requiere instalar paquetes adicionales mediante `pip`.
 
 **Entorno utilizado:**
 - Windows 11
 - Python 3.13.15
 - Git Bash
 - Visual Studio Code
+
+### Lectura del directorio
 
 Desde la carpeta del proyecto se puede generar una imagen artificial:
 
@@ -110,7 +127,9 @@ Para consultar su directorio:
 py main.py fiunamfs_prueba.img
 ```
 
-Para exportar un archivo, primero se prepara la carpeta de salida:
+### Exportación de archivos
+
+Primero se prepara la carpeta de salida:
 
 ```bash
 mkdir -p salidas
@@ -123,6 +142,34 @@ py main.py fiunamfs_prueba.img --exportar logo.png --destino salidas/logo.png
 ```
 
 El archivo se almacena en la carpeta `salidas`. Si ya existe otro archivo con ese nombre, la operación se rechaza para evitar sobrescribirlo.
+
+### Importación de archivos
+
+Para probar la importación se utiliza una imagen artificial:
+
+```bash
+py pruebas/crear_imagen_demo.py demo_importacion.img
+```
+
+Se crea un archivo de texto:
+
+```bash
+printf "Prueba de importacion\n" > salidas/EJEMPLO.TXT
+```
+
+Después se incorpora a FiUnamFS:
+
+```bash
+py main.py demo_importacion.img --importar salidas/EJEMPLO.TXT
+```
+
+Para comprobar que aparece en el directorio:
+
+```bash
+py main.py demo_importacion.img
+```
+
+El programa muestra el nombre, tamaño, cluster inicial y fechas del archivo importado. Si se intenta importar nuevamente el mismo nombre, se rechaza la operación para evitar duplicados.
 
 ## 5. Resultados obtenidos
 
@@ -144,16 +191,34 @@ Se realizaron exportaciones de `logo.png` y `mensaje.jpg`, obteniendo archivos d
 
 Ambos archivos pudieron recuperarse desde la imagen FiUnamFS. Además, se comparó byte por byte el contenido extraído de `logo.png` con la información almacenada en el disco, obteniendo una coincidencia exacta.
 
+### Resultados de importación
+
+Para comprobar la escritura se utilizó una imagen artificial que inicialmente contenía dos archivos: `HOLA.TXT` y `DATOS.BIN`.
+
+Posteriormente se incorporaron dos archivos de texto desde Windows:
+
+| Archivo | Tamaño (bytes) | Cluster asignado |
+|---|---:|---:|
+| PRUEBA.TXT | 36 | 7 |
+| NUEVO.TXT | 30 | 8 |
+
+Después de ambas importaciones, el directorio contenía cuatro archivos. Los archivos originales permanecieron registrados en sus clusters correspondientes.
+
+También se verificó la integridad de `NUEVO.TXT` mediante una prueba de importación y exportación. El archivo recuperado fue comparado con el original utilizando `cmp` y SHA-256, obteniendo resultados idénticos.
+
+Las pruebas adicionales permitieron comprobar el comportamiento del programa ante archivos duplicados, nombres inválidos, archivos vacíos, falta de espacio y directorios llenos.
+
 ### Pruebas automáticas
 
 Para comprobar el funcionamiento del programa se utilizó el módulo `unittest` de Python.
 
-Se ejecutaron **17 pruebas automáticas**, divididas de la siguiente manera:
+Se ejecutaron **27 pruebas automáticas**, divididas de la siguiente manera:
 
-- **12 pruebas de lectura y validación:** comprueban la interpretación del superbloque, la lectura del directorio, las fechas, los nombres, los límites del disco y la detección de clusters superpuestos.
-- **5 pruebas de exportación:** verifican la extracción de archivos binarios y de texto, el manejo de archivos inexistentes, la prevención de sobrescrituras y la conservación de la imagen original.
+- **12 pruebas de lectura y validación:** interpretación del superbloque, lectura del directorio, nombres, fechas, límites del disco y detección de clusters superpuestos.
+- **5 pruebas de exportación:** extracción de archivos binarios y de texto, manejo de archivos inexistentes, prevención de sobrescrituras y conservación de la imagen original.
+- **10 pruebas de importación:** incorporación de archivos de texto y binarios, archivos vacíos, nombres inválidos o duplicados, espacio insuficiente, directorio lleno y preservación de los archivos existentes.
 
-Las pruebas se ejecutaron con:
+Las pruebas se ejecutaron mediante:
 
 ```bash
 py -m unittest discover -s pruebas -v
@@ -162,11 +227,10 @@ py -m unittest discover -s pruebas -v
 **Resultado obtenido:**
 
 ```text
-Ran 17 tests in 2.377s
+Ran 27 tests in 6.850s
 
 OK
 ```
-
 
 Todas las pruebas finalizaron correctamente, sin errores ni fallos.
 

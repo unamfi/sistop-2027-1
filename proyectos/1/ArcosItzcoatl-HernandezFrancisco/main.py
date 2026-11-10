@@ -7,14 +7,17 @@ from fiunamfs import ErrorFiUnamFS, FiUnamFS
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Consulta y exporta archivos de FiUnamFS 27-1"
+        description="Consulta, importa y exporta archivos de FiUnamFS 27-1"
     )
 
     parser.add_argument("imagen", help="Ruta de la imagen FiUnamFS")
     parser.add_argument("--exportar", help="Nombre del archivo a extraer")
     parser.add_argument("--destino", help="Ruta donde guardar el archivo")
+    parser.add_argument("--importar", help="Ruta del archivo local que se incorporará a FiUnamFS")
 
     args = parser.parse_args()
+    if args.importar and (args.exportar or args.destino):
+        parser.error("--importar no puede combinarse con --exportar ni --destino" )
 
     # La exportación necesita un nombre y una ruta de destino.
     if (args.exportar is None) != (args.destino is None):
@@ -23,6 +26,16 @@ def main() -> None:
     try:
         disco = FiUnamFS(args.imagen)
         superbloque = disco.leer_superbloque()
+        if args.importar is not None:
+            archivo = disco.importar_archivo(args.importar)
+
+            print(
+                f"Archivo importado: {archivo.nombre} "
+                f"({archivo.tamanio} bytes) "
+                f"al cluster {archivo.cluster_inicial}")
+            return
+
+
 
         if args.exportar is not None:
             ruta = disco.exportar_archivo(args.exportar, args.destino)
