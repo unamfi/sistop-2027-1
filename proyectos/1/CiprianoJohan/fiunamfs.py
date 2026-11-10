@@ -178,6 +178,14 @@ def crear_entrada(nombre, tamano, cluster, creacion, modificacion):
     return bytes(entrada)
 
 
+def crear_entrada_vacia():
+    """Entrada libre: tipo '-' y el nombre reservado '#..............'."""
+    entrada = bytearray(TAM_ENTRADA)
+    entrada[ENT_TIPO[0]:ENT_TIPO[1]] = TIPO_VACIO
+    entrada[ENT_NOMBRE[0]:ENT_NOMBRE[1]] = NOMBRE_VACIO
+    return bytes(entrada)
+
+
 def nombre_local(nombre):
     """Adapta un nombre de FiUnamFS para el sistema local: reemplaza los
     caracteres que Windows no admite en nombres de archivo."""
@@ -320,6 +328,18 @@ class FiUnamFS:
                               crear_entrada(nombre, len(contenido), inicio, ahora, ahora))
         return self.buscar(nombre)
 
+    def eliminar(self, nombre):
+        """Elimina un archivo marcando su entrada como libre.
+
+        Basta con liberar la entrada: el espacio de datos queda disponible
+        porque la ocupación se calcula únicamente a partir del directorio.
+        """
+        entrada = self.buscar(nombre)
+        if entrada is None:
+            raise ErrorFiUnamFS(f"no existe '{nombre}' en el volumen")
+        self.escribir_entrada(entrada.indice, crear_entrada_vacia())
+        return entrada
+
     def cerrar(self):
         self.archivo.close()
 
@@ -342,10 +362,7 @@ def formatear(ruta, etiqueta="Johan FiUnamFS"):
     superbloque[SB_CLUSTERS_TOTAL[0]:SB_CLUSTERS_TOTAL[1]] = de_entero(TOTAL_CLUSTERS)
 
     # Toda entrada del directorio arranca marcada como vacía
-    entrada_vacia = bytearray(TAM_ENTRADA)
-    entrada_vacia[ENT_TIPO[0]:ENT_TIPO[1]] = TIPO_VACIO
-    entrada_vacia[ENT_NOMBRE[0]:ENT_NOMBRE[1]] = NOMBRE_VACIO
-    directorio = bytes(entrada_vacia) * ENTRADAS_DIR
+    directorio = crear_entrada_vacia() * ENTRADAS_DIR
 
     with open(ruta, "wb") as imagen:
         imagen.write(superbloque)
@@ -370,9 +387,10 @@ if __name__ == "__main__":
     #   fiunamfs.py <imagen>                       lista el volumen
     #   fiunamfs.py <imagen> extraer <nombre> [destino]
     #   fiunamfs.py <imagen> copiar <archivo local> [nombre en FiUnamFS]
+    #   fiunamfs.py <imagen> eliminar <nombre>
     if len(sys.argv) < 2:
-        print(f"Uso: {sys.argv[0]} <imagen.img> "
-              "[extraer <nombre> [destino] | copiar <archivo> [nombre]]",
+        print(f"Uso: {sys.argv[0]} <imagen.img> [extraer <nombre> [destino] | "
+              "copiar <archivo> [nombre] | eliminar <nombre>]",
               file=sys.stderr)
         sys.exit(1)
     try:
@@ -384,6 +402,10 @@ if __name__ == "__main__":
                 nombre = sys.argv[4] if len(sys.argv) > 4 else None
                 e = volumen.copiar_hacia(sys.argv[3], nombre)
                 print(f"'{e.nombre}' copiado: {e.tamano} bytes desde el cluster {e.cluster}")
+            elif len(sys.argv) >= 4 and sys.argv[2] == "eliminar":
+                e = volumen.eliminar(sys.argv[3])
+                print(f"'{e.nombre}' eliminado; se liberaron "
+                      f"{e.clusters_ocupados(volumen.tam_cluster)} cluster(s)")
             else:
                 imprimir_listado(volumen)
     except (OSError, ErrorFiUnamFS) as error:
