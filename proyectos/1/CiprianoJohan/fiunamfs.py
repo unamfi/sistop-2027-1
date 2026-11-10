@@ -11,6 +11,7 @@ la geometría del «diskette», la disposición del superbloque y del
 directorio, y las conversiones de enteros de 32 bits little endian.
 """
 
+import os
 import struct
 import sys
 from datetime import datetime
@@ -152,6 +153,12 @@ class EntradaDirectorio:
         return max(1, -(-self.tamano // tam_cluster))   # división hacia arriba
 
 
+def nombre_local(nombre):
+    """Adapta un nombre de FiUnamFS para el sistema local: reemplaza los
+    caracteres que Windows no admite en nombres de archivo."""
+    return "".join("_" if c in '<>:"/\\|?*' else c for c in nombre) or "sin_nombre"
+
+
 def formatear_fecha(fecha):
     """Convierte AAAAMMDDHHMMSS a 'AAAA-MM-DD HH:MM:SS'; si no es válida, la deja tal cual."""
     try:
@@ -196,6 +203,36 @@ class FiUnamFS:
         """Archivos presentes en el volumen, ordenados por nombre."""
         archivos = [e for e in self.leer_directorio() if not e.vacia]
         return sorted(archivos, key=lambda e: e.nombre)
+
+    def buscar(self, nombre):
+        """Devuelve la entrada del archivo con ese nombre, o None si no existe."""
+        for entrada in self.listar():
+            if entrada.nombre == nombre:
+                return entrada
+        return None
+
+    def leer_archivo(self, entrada):
+        """Contenido de un archivo: al ser asignación contigua, basta con leer
+        `tamano` bytes a partir de su cluster inicial."""
+        fin = entrada.cluster * self.tam_cluster + entrada.tamano
+        if entrada.cluster < CLUSTER_INICIO_DATOS or fin > self.superbloque.clusters_total * self.tam_cluster:
+            raise ErrorFiUnamFS(f"'{entrada.nombre}' apunta fuera del área de datos")
+        self.archivo.seek(entrada.cluster * self.tam_cluster)
+        return self.archivo.read(entrada.tamano)
+
+    def extraer(self, nombre, destino="."):
+        """Copia un archivo de FiUnamFS al sistema local y devuelve la ruta creada.
+
+        Si `destino` es un directorio, el archivo se guarda ahí con su mismo nombre.
+        """
+        entrada = self.buscar(nombre)
+        if entrada is None:
+            raise ErrorFiUnamFS(f"no existe '{nombre}' en el volumen")
+        if os.path.isdir(destino):
+            destino = os.path.join(destino, nombre_local(entrada.nombre))
+        with open(destino, "wb") as salida:
+            salida.write(self.leer_archivo(entrada))
+        return destino
 
     def cerrar(self):
         self.archivo.close()
@@ -243,13 +280,20 @@ def imprimir_listado(fs):
 
 
 if __name__ == "__main__":
-    # Prueba rápida mientras se construye la interfaz: lista una imagen
-    if len(sys.argv) != 2:
-        print(f"Uso: {sys.argv[0]} <imagen.img>", file=sys.stderr)
+    # Modo de prueba mientras se construye la interfaz:
+    #   fiunamfs.py <imagen>                       lista el volumen
+    #   fiunamfs.py <imagen> extraer <nombre> [destino]
+    if len(sys.argv) < 2:
+        print(f"Uso: {sys.argv[0]} <imagen.img> [extraer <nombre> [destino]]",
+              file=sys.stderr)
         sys.exit(1)
     try:
         with FiUnamFS(sys.argv[1]) as volumen:
-            imprimir_listado(volumen)
+            if len(sys.argv) >= 4 and sys.argv[2] == "extraer":
+                destino = sys.argv[4] if len(sys.argv) > 4 else "."
+                print(f"Copiado a {volumen.extraer(sys.argv[3], destino)}")
+            else:
+                imprimir_listado(volumen)
     except (OSError, ErrorFiUnamFS) as error:
         print(f"Error: {error}", file=sys.stderr)
         sys.exit(2)
