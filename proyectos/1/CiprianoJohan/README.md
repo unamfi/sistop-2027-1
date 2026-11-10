@@ -18,4 +18,12 @@ imagen del sistema de archivos `FiUnamFS` (versión 27-1).
 
 | Archivo        | Contenido                                           |
 |----------------|-----------------------------------------------------|
-| `fiunamfs.py`  | Constantes de la especificación y conversión de enteros |
+| `fiunamfs.py`  | Especificación de FiUnamFS: constantes, superbloque (lectura y validación), entradas del directorio, listado, acceso a la imagen y formateo |
+
+## Uso (provisional)
+
+Mientras se termina la interfaz, se puede listar el contenido de una imagen:
+
+```bash
+python fiunamfs.py ../fiunamfs.img
+```

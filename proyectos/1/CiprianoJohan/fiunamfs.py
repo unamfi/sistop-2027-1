@@ -12,6 +12,8 @@ directorio, y las conversiones de enteros de 32 bits little endian.
 """
 
 import struct
+import sys
+from datetime import datetime
 
 # ---------------------------------------------------------------------------
 # Geometría del dispositivo
@@ -121,6 +123,44 @@ class Superbloque:
 
 
 # ---------------------------------------------------------------------------
+# Entradas del directorio
+# ---------------------------------------------------------------------------
+class EntradaDirectorio:
+    """Una entrada de 64 bytes del directorio plano.
+
+    `indice` es su posición dentro del directorio; se necesita después para
+    reescribir la entrada al copiar o eliminar archivos.
+    """
+
+    def __init__(self, indice, datos):
+        self.indice = indice
+        self.tipo = campo(datos, ENT_TIPO)
+        self.nombre_crudo = campo(datos, ENT_NOMBRE)
+        self.nombre = a_texto(self.nombre_crudo)
+        self.tamano = a_entero(campo(datos, ENT_TAMANO))
+        self.cluster = a_entero(campo(datos, ENT_CLUSTER))
+        self.creacion = a_texto(campo(datos, ENT_CREACION))
+        self.modificacion = a_texto(campo(datos, ENT_MODIFICACION))
+
+    @property
+    def vacia(self):
+        """Una entrada está libre si no es tipo 'F' o lleva el nombre reservado."""
+        return self.tipo != TIPO_ARCHIVO or self.nombre_crudo == NOMBRE_VACIO
+
+    def clusters_ocupados(self, tam_cluster):
+        """Número de clusters que usa el archivo (al menos 1, aunque esté vacío)."""
+        return max(1, -(-self.tamano // tam_cluster))   # división hacia arriba
+
+
+def formatear_fecha(fecha):
+    """Convierte AAAAMMDDHHMMSS a 'AAAA-MM-DD HH:MM:SS'; si no es válida, la deja tal cual."""
+    try:
+        return datetime.strptime(fecha, FORMATO_FECHA).strftime("%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return fecha or "-"
+
+
+# ---------------------------------------------------------------------------
 # Acceso a la imagen
 # ---------------------------------------------------------------------------
 class FiUnamFS:
@@ -145,6 +185,17 @@ class FiUnamFS:
         """Lee `cantidad` clusters consecutivos a partir de `inicio`."""
         self.archivo.seek(inicio * self.tam_cluster)
         return self.archivo.read(cantidad * self.tam_cluster)
+
+    def leer_directorio(self):
+        """Devuelve todas las entradas del directorio, libres u ocupadas."""
+        datos = self.leer_clusters(CLUSTER_INICIO_DIR, self.superbloque.clusters_dir)
+        return [EntradaDirectorio(i, datos[i * TAM_ENTRADA:(i + 1) * TAM_ENTRADA])
+                for i in range(len(datos) // TAM_ENTRADA)]
+
+    def listar(self):
+        """Archivos presentes en el volumen, ordenados por nombre."""
+        archivos = [e for e in self.leer_directorio() if not e.vacia]
+        return sorted(archivos, key=lambda e: e.nombre)
 
     def cerrar(self):
         self.archivo.close()
@@ -177,3 +228,28 @@ def formatear(ruta, etiqueta="Johan FiUnamFS"):
         imagen.write(superbloque)
         imagen.write(directorio)
         imagen.write(bytes(TAM_DISCO - len(superbloque) - len(directorio)))
+
+
+def imprimir_listado(fs):
+    """Muestra el contenido del volumen en forma de tabla."""
+    print(fs.superbloque)
+    archivos = fs.listar()
+    print(f"\n{'Nombre':<16} {'Tamaño':>9} {'Cluster':>7}  {'Creación':<19}  Modificación")
+    print("=" * 78)
+    for e in archivos:
+        print(f"{e.nombre:<16} {e.tamano:>9} {e.cluster:>7}  "
+              f"{formatear_fecha(e.creacion):<19}  {formatear_fecha(e.modificacion)}")
+    print(f"\n{len(archivos)} archivo(s)")
+
+
+if __name__ == "__main__":
+    # Prueba rápida mientras se construye la interfaz: lista una imagen
+    if len(sys.argv) != 2:
+        print(f"Uso: {sys.argv[0]} <imagen.img>", file=sys.stderr)
+        sys.exit(1)
+    try:
+        with FiUnamFS(sys.argv[1]) as volumen:
+            imprimir_listado(volumen)
+    except (OSError, ErrorFiUnamFS) as error:
+        print(f"Error: {error}", file=sys.stderr)
+        sys.exit(2)
