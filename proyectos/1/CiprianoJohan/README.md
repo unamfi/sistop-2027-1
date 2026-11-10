@@ -19,6 +19,7 @@ imagen del sistema de archivos `FiUnamFS` (versión 27-1).
 | Archivo        | Contenido                                           |
 |----------------|-----------------------------------------------------|
 | `fiunamfs.py`  | Especificación de FiUnamFS: constantes, superbloque (lectura y validación), entradas del directorio, listado, extracción de archivos, copia hacia el volumen (asignación contigua *first fit*), eliminación, acceso a la imagen y formateo |
+| `concurrencia.py` | Hilos «disco» y «bitácora», cola de solicitudes y estado compartido sincronizado |
 
 ## Uso (provisional)
 
@@ -36,3 +37,14 @@ Al copiar hacia FiUnamFS se valida que el nombre sea US-ASCII de máximo 15
 caracteres y que no exista ya; el archivo se coloca en el primer hueco de
 clusters contiguos que alcance. Eliminar solo marca la entrada como libre
 (`-` y `#..............`); sus clusters quedan disponibles para nuevos archivos.
+
+## Hilos y sincronización
+
+- **Interfaz** (hilo principal): solicita operaciones; nunca toca la imagen.
+- **disco**: único hilo que lee y escribe la imagen. Consume las solicitudes
+  de una `queue.Queue` (productor–consumidor), así las operaciones quedan
+  serializadas y el directorio no se puede corromper. Al terminar cada una
+  avisa con un `threading.Event`.
+- **bitácora**: espera con una `threading.Condition` a que el hilo disco
+  publique un estado nuevo del volumen y registra la operación junto con los
+  clusters libres.

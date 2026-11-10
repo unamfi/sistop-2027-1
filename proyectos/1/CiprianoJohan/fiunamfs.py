@@ -275,20 +275,28 @@ class FiUnamFS:
         self.archivo.write(datos)
         self.archivo.flush()
 
-    def buscar_espacio(self, clusters_necesarios):
-        """Primer hueco contiguo de clusters libres que alcance (first fit).
+    def mapa_ocupacion(self):
+        """Lista de booleanos, uno por cluster: True si está en uso.
 
         Como toda la información de los archivos está en el directorio, el
-        mapa de ocupación se reconstruye a partir de las entradas.
+        mapa se reconstruye a partir de las entradas.
         """
         total = self.superbloque.clusters_total
-        ocupado = [False] * total
+        ocupado = [c < self.inicio_datos for c in range(total)]
         for e in self.listar():
             for c in range(e.cluster, min(total, e.cluster + e.clusters_ocupados(self.tam_cluster))):
                 ocupado[c] = True
+        return ocupado
 
+    def clusters_libres(self):
+        """Clusters del área de datos que no ocupa ningún archivo."""
+        return self.mapa_ocupacion().count(False)
+
+    def buscar_espacio(self, clusters_necesarios):
+        """Primer hueco contiguo de clusters libres que alcance (first fit)."""
+        ocupado = self.mapa_ocupacion()
         inicio_hueco, longitud = None, 0
-        for c in range(self.inicio_datos, total):
+        for c in range(self.inicio_datos, len(ocupado)):
             if ocupado[c]:
                 inicio_hueco, longitud = None, 0
                 continue
