@@ -271,3 +271,49 @@ class FiUnamFS:
             nombre, tamanio, inicio,
             fecha.decode(), fecha.decode(), indice_libre
         )
+
+    def eliminar_archivo(self, nombre: str) -> Archivo:
+        """Elimina un archivo y libera sus clusters."""
+
+        archivos = self.listar_archivos()
+        archivo = next(
+            (a for a in archivos if a.nombre == nombre),
+            None
+        )
+
+        if archivo is None:
+            raise ErrorFiUnamFS(f"No existe el archivo: {nombre}")
+
+        # Localizar su entrada en el directorio.
+        imagen = bytearray(self.ruta.read_bytes())
+        posicion = (
+            TAMANIO_CLUSTER
+            + archivo.indice_directorio * TAMANIO_ENTRADA
+        )
+
+        # Marcar la entrada como libre.
+        imagen[posicion:posicion + TAMANIO_ENTRADA] = (
+            b"-" + MARCA_LIBRE + b"\x00" * 48
+        )
+
+        # Crear una imagen temporal para validar los cambios.
+        descriptor, ruta_temp = tempfile.mkstemp(
+            prefix=".fiunamfs_",
+            suffix=".tmp",
+            dir=self.ruta.parent
+        )
+        temporal = Path(ruta_temp)
+
+        try:
+            with os.fdopen(descriptor, "wb") as salida:
+                salida.write(imagen)
+                salida.flush()
+                os.fsync(salida.fileno())
+
+            FiUnamFS(temporal).listar_archivos()
+            os.replace(temporal, self.ruta)
+
+        finally:
+            temporal.unlink(missing_ok=True)
+
+        return archivo

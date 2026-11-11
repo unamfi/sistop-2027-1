@@ -17,7 +17,7 @@ FiUnamFS simula una unidad de almacenamiento de 1,440 KiB mediante un archivo bi
 
 El programa completo deberá permitir consultar, copiar, incorporar y eliminar archivos, además de utilizar hilos de ejecución y mecanismos de sincronización.
 
-Actualmente, la implementación permite validar imágenes FiUnamFS 27-1, consultar su directorio, exportar archivos hacia el sistema operativo e importar archivos locales. Para las pruebas de escritura se utilizan imágenes de prueba, conservando la imagen original proporcionada por el profesor.
+Actualmente, la implementación permite validar imágenes FiUnamFS 27-1, consultar su directorio, exportar archivos hacia el sistema operativo, importar archivos locales y eliminar archivos del volumen. Para las pruebas de escritura se utilizan imágenes de prueba, conservando la imagen original proporcionada por el profesor.
 
 ## 2. Estructura del sistema de archivos
 
@@ -41,12 +41,13 @@ El proyecto se encuentra dividido en los siguientes archivos:
 
 | Archivo | Función |
 |---|---|
-| `fiunamfs.py` | Lectura, validación, exportación e importación de archivos |
-| `main.py` | Interfaz de consola para listar, importar y exportar archivos |
+| `fiunamfs.py` | Lectura, validación, exportación, importación y eliminación de archivos |
+| `main.py` | Interfaz de consola para listar, importar, exportar y eliminar archivos |
 | `pruebas/crear_imagen_demo.py` | Generación de una imagen artificial |
 | `pruebas/test_lectura.py` | Pruebas de lectura y validación |
 | `pruebas/test_exportacion.py` | Pruebas de exportación e integridad |
 | `pruebas/test_importacion.py` | Pruebas de importación y asignación de espacio |
+| `pruebas/test_eliminacion.py` | Pruebas de eliminación y reutilización de clusters |
 | `.gitignore` | Exclusión de archivos temporales y de prueba |
 
 Esta organización mantiene la lógica del sistema de archivos separada de la interfaz de consola y las pruebas.
@@ -90,6 +91,20 @@ Una vez encontrado el espacio disponible, prepara los datos del archivo y una en
 Para reducir el riesgo de corrupción, las modificaciones se realizan primero sobre una imagen temporal. Después de validar su estructura, esta reemplaza a la imagen de trabajo.
 
 Este procedimiento permite incorporar archivos sin sobrescribir los clusters utilizados por otros archivos existentes.
+
+### Eliminación de archivos
+
+La eliminación permite retirar un archivo del directorio de FiUnamFS y liberar el espacio que tenía asignado.
+
+Primero se busca el archivo solicitado dentro del directorio. Si no existe, el programa rechaza la operación sin modificar la imagen.
+
+Cuando se encuentra el archivo, se localiza su entrada de 64 bytes y se marca como disponible mediante el carácter `-` y la marca correspondiente a una entrada libre.
+
+La eliminación es lógica, por lo que no es necesario borrar físicamente los datos almacenados en los clusters. Al desaparecer el registro del directorio, estos clusters dejan de considerarse ocupados y pueden reutilizarse en futuras importaciones.
+
+Al igual que en la importación, los cambios se realizan sobre una imagen temporal que se valida antes de reemplazar la imagen de trabajo.
+
+Este procedimiento permite eliminar archivos y recuperar espacio sin modificar los registros de los demás archivos existentes.
 
 ## 4. Ejecución del programa
 
@@ -171,6 +186,40 @@ py main.py demo_importacion.img
 
 El programa muestra el nombre, tamaño, cluster inicial y fechas del archivo importado. Si se intenta importar nuevamente el mismo nombre, se rechaza la operación para evitar duplicados.
 
+### Eliminación de archivos
+
+Para probar la eliminación se utiliza una imagen artificial independiente:
+
+```bash
+py pruebas/crear_imagen_demo.py demo_eliminacion.img
+```
+
+Se crea el archivo que será eliminado:
+
+```bash
+printf "Contenido que vamos a eliminar\n" > salidas/BORRAR.TXT
+```
+
+Después se incorpora al sistema de archivos:
+
+```bash
+py main.py demo_eliminacion.img --importar salidas/BORRAR.TXT
+```
+
+Para eliminarlo:
+
+```bash
+py main.py demo_eliminacion.img --eliminar BORRAR.TXT
+```
+
+Finalmente, se consulta nuevamente el directorio:
+
+```bash
+py main.py demo_eliminacion.img
+```
+
+El archivo eliminado ya no aparece en el listado. Los archivos restantes continúan registrados y el espacio liberado queda disponible para futuras importaciones.
+
 ## 5. Resultados obtenidos
 
 ### Lectura de la imagen oficial
@@ -208,15 +257,38 @@ También se verificó la integridad de `NUEVO.TXT` mediante una prueba de import
 
 Las pruebas adicionales permitieron comprobar el comportamiento del programa ante archivos duplicados, nombres inválidos, archivos vacíos, falta de espacio y directorios llenos.
 
+### Resultados de eliminación
+
+Para comprobar la eliminación se utilizó una imagen artificial que inicialmente contenía `HOLA.TXT` y `DATOS.BIN`, almacenados en los clusters 5 y 6, respectivamente.
+
+Posteriormente se incorporó `BORRAR.TXT`, de 31 bytes, al cluster 7.
+
+Al ejecutar la eliminación, el programa retiró su entrada del directorio. Una nueva consulta mostró únicamente los archivos originales:
+
+| Archivo | Tamaño (bytes) | Cluster inicial |
+|---|---:|---:|
+| HOLA.TXT | 21 | 5 |
+| DATOS.BIN | 256 | 6 |
+
+Para comprobar la reutilización del espacio se importó `NUEVO.TXT`, de 30 bytes. El programa volvió a asignar el cluster 7, que había sido liberado al eliminar `BORRAR.TXT`.
+
+Finalmente, también se comprobó la eliminación de `NUEVO.TXT` desde la interfaz de consola, verificando nuevamente que solo permanecieran los dos archivos originales.
+
+Las pruebas adicionales comprobaron que no se modifica la imagen al intentar eliminar archivos inexistentes o previamente eliminados, que los archivos restantes conservan su contenido y que el tamaño total del disco permanece sin cambios.
+
 ### Pruebas automáticas
 
 Para comprobar el funcionamiento del programa se utilizó el módulo `unittest` de Python.
 
-Se ejecutaron **27 pruebas automáticas**, divididas de la siguiente manera:
+Se ejecutaron **33 pruebas automáticas**, divididas de la siguiente manera:
 
 - **12 pruebas de lectura y validación:** interpretación del superbloque, lectura del directorio, nombres, fechas, límites del disco y detección de clusters superpuestos.
+
 - **5 pruebas de exportación:** extracción de archivos binarios y de texto, manejo de archivos inexistentes, prevención de sobrescrituras y conservación de la imagen original.
+
 - **10 pruebas de importación:** incorporación de archivos de texto y binarios, archivos vacíos, nombres inválidos o duplicados, espacio insuficiente, directorio lleno y preservación de los archivos existentes.
+
+- **6 pruebas de eliminación:** eliminación de archivos, reutilización de clusters, manejo de archivos inexistentes, rechazo de una segunda eliminación, conservación de los datos existentes y verificación del tamaño del disco.
 
 Las pruebas se ejecutaron mediante:
 
@@ -227,7 +299,7 @@ py -m unittest discover -s pruebas -v
 **Resultado obtenido:**
 
 ```text
-Ran 27 tests in 6.850s
+Ran 33 tests in 1.303s
 
 OK
 ```
