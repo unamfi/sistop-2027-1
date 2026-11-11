@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <limits.h>
+#include <dirent.h>
 
 int main(int argc, char *argv[])
 {
@@ -23,8 +24,29 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    printf("Directorio: %s\n", directorio);
-    printf("Dias: %ld\n", dias);
+	DIR *dir = opendir(directorio);
+
+	if (dir == NULL) {
+    		perror("Error al abrir el directorio");
+    		return EXIT_FAILURE;
+	}
+
+	struct dirent *entrada;
+
+	while ((entrada = readdir(dir)) != NULL) {
+    		if (entrada->d_name[0] == '.' &&
+        	(entrada->d_name[1] == '\0' ||
+        	(entrada->d_name[1] == '.' &&
+         	entrada->d_name[2] == '\0'))) {
+       		 continue;
+	}
+
+    	printf("%s\n", entrada->d_name);
+}
+
+	closedir(dir);
+
+
 
     return EXIT_SUCCESS;
 }
