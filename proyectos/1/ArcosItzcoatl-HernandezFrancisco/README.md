@@ -15,9 +15,9 @@ El proyecto consiste en desarrollar un programa en Python capaz de interpretar y
 
 FiUnamFS simula una unidad de almacenamiento de 1,440 KiB mediante un archivo binario. Su estructura incluye un superbloque, un directorio plano y una región destinada al almacenamiento de archivos.
 
-El programa completo deberá permitir consultar, copiar, incorporar y eliminar archivos, además de utilizar hilos de ejecución y mecanismos de sincronización.
+El programa permite validar imágenes FiUnamFS 27-1, consultar su directorio, exportar archivos, importar archivos locales y eliminarlos del volumen. Estas operaciones están disponibles desde la consola y desde una interfaz gráfica hecha con Tkinter.
 
-Actualmente, la implementación permite validar imágenes FiUnamFS 27-1, consultar su directorio, exportar archivos hacia el sistema operativo, importar archivos locales y eliminar archivos del volumen. Para las pruebas de escritura se utilizan imágenes de prueba, conservando la imagen original proporcionada por el profesor.
+La interfaz utiliza dos hilos trabajadores y mecanismos de sincronización para procesar las solicitudes sin que se interfieran los accesos a la imagen. Para las pruebas de escritura se utilizan imágenes de prueba, conservando la imagen original proporcionada por el profesor.
 
 ## 2. Estructura del sistema de archivos
 
@@ -43,14 +43,16 @@ El proyecto se encuentra dividido en los siguientes archivos:
 |---|---|
 | `fiunamfs.py` | Lectura, validación, exportación, importación y eliminación de archivos |
 | `main.py` | Interfaz de consola para listar, importar, exportar y eliminar archivos |
+| `interfaz.py` | Interfaz gráfica con Tkinter y dos hilos trabajadores |
 | `pruebas/crear_imagen_demo.py` | Generación de una imagen artificial |
 | `pruebas/test_lectura.py` | Pruebas de lectura y validación |
 | `pruebas/test_exportacion.py` | Pruebas de exportación e integridad |
 | `pruebas/test_importacion.py` | Pruebas de importación y asignación de espacio |
 | `pruebas/test_eliminacion.py` | Pruebas de eliminación y reutilización de clusters |
+| `pruebas/test_concurrencia.py` | Pruebas de procesamiento de solicitudes y sincronización |
 | `.gitignore` | Exclusión de archivos temporales y de prueba |
 
-Esta organización mantiene la lógica del sistema de archivos separada de la interfaz de consola y las pruebas.
+Esta organización mantiene la lógica del sistema de archivos separada de las interfaces de consola y gráfica, así como de las pruebas.
 
 ### Lectura del superbloque
 
@@ -105,6 +107,14 @@ La eliminación es lógica, por lo que no es necesario borrar físicamente los d
 Al igual que en la importación, los cambios se realizan sobre una imagen temporal que se valida antes de reemplazar la imagen de trabajo.
 
 Este procedimiento permite eliminar archivos y recuperar espacio sin modificar los registros de los demás archivos existentes.
+
+### Interfaz gráfica y sincronización
+
+La interfaz se desarrolló con Tkinter y permite seleccionar una imagen FiUnamFS para consultar su contenido, importar, exportar y eliminar archivos. La tabla muestra el nombre, tamaño, cluster y fechas de cada archivo.
+
+Para procesar las solicitudes se crearon dos hilos trabajadores (`Trabajador-1` y `Trabajador-2`). La interfaz coloca las operaciones en una cola (`queue.Queue`) y los trabajadores toman las solicitudes disponibles. Se utiliza `threading.Condition` para respetar el orden en que se enviaron y `threading.Lock` para que solo un trabajador acceda a la imagen a la vez.
+
+Los trabajadores envían sus resultados a otra cola, que es consultada por el hilo principal de Tkinter para actualizar la tabla y mostrar qué trabajador atendió cada operación. Así se evita modificar los componentes gráficos desde un hilo secundario. Los accesos al disco se realizan de uno en uno para proteger su contenido.
 
 ## 4. Ejecución del programa
 
@@ -220,6 +230,18 @@ py main.py demo_eliminacion.img
 
 El archivo eliminado ya no aparece en el listado. Los archivos restantes continúan registrados y el espacio liberado queda disponible para futuras importaciones.
 
+### Uso de la interfaz gráfica
+
+Desde la carpeta del proyecto se ejecuta:
+
+```bash
+py interfaz.py
+```
+
+La ventana inicia sin una imagen cargada. Con **Seleccionar** se abre una imagen FiUnamFS y se consulta su directorio. Los botones **Importar**, **Exportar** y **Eliminar** permiten administrar los archivos; para exportar o eliminar primero se selecciona un registro de la tabla. La eliminación solicita confirmación.
+
+Es recomendable realizar las pruebas con una copia de la imagen.
+
 ## 5. Resultados obtenidos
 
 ### Lectura de la imagen oficial
@@ -276,11 +298,19 @@ Finalmente, también se comprobó la eliminación de `NUEVO.TXT` desde la interf
 
 Las pruebas adicionales comprobaron que no se modifica la imagen al intentar eliminar archivos inexistentes o previamente eliminados, que los archivos restantes conservan su contenido y que el tamaño total del disco permanece sin cambios.
 
+### Resultados de la interfaz y concurrencia
+
+Se comprobó desde la ventana que era posible seleccionar una imagen, consultar su directorio e importar, exportar y eliminar archivos. En la exportación de `BORRAR.TXT` se comparó el archivo original con `BORRAR_COPIA.TXT` mediante `cmp`, sin encontrar diferencias.
+
+Al consultar varias veces el directorio, el estado de la ventana mostró solicitudes atendidas por `Trabajador-1` y `Trabajador-2`.
+
+Además, las pruebas de concurrencia comprobaron que ambos hilos procesan solicitudes, que las operaciones de importación y eliminación respetan el orden, que un error no impide atender la siguiente solicitud y que se rechaza una importación duplicada.
+
 ### Pruebas automáticas
 
 Para comprobar el funcionamiento del programa se utilizó el módulo `unittest` de Python.
 
-Se ejecutaron **33 pruebas automáticas**, divididas de la siguiente manera:
+Se ejecutaron **37 pruebas automáticas**, divididas de la siguiente manera:
 
 - **12 pruebas de lectura y validación:** interpretación del superbloque, lectura del directorio, nombres, fechas, límites del disco y detección de clusters superpuestos.
 
@@ -289,6 +319,8 @@ Se ejecutaron **33 pruebas automáticas**, divididas de la siguiente manera:
 - **10 pruebas de importación:** incorporación de archivos de texto y binarios, archivos vacíos, nombres inválidos o duplicados, espacio insuficiente, directorio lleno y preservación de los archivos existentes.
 
 - **6 pruebas de eliminación:** eliminación de archivos, reutilización de clusters, manejo de archivos inexistentes, rechazo de una segunda eliminación, conservación de los datos existentes y verificación del tamaño del disco.
+
+- **4 pruebas de concurrencia y sincronización:** participación de ambos trabajadores, secuencia de importación y eliminación, continuidad tras un error y rechazo de importaciones duplicadas.
 
 Las pruebas se ejecutaron mediante:
 
@@ -299,7 +331,7 @@ py -m unittest discover -s pruebas -v
 **Resultado obtenido:**
 
 ```text
-Ran 33 tests in 1.303s
+Ran 37 tests in 4.441s
 
 OK
 ```
