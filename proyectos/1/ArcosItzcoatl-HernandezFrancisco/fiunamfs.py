@@ -1,4 +1,4 @@
-"""Lectura y validación del formato FiUnamFS 27-1 (fase 1)."""
+"""Administración de archivos del sistema FiUnamFS 27-1."""
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -40,7 +40,7 @@ class Archivo:
 
 
 class FiUnamFS:
-    """Inspecciona una imagen de disco sin modificarla."""
+    """Permite consultar y modificar imágenes FiUnamFS."""
 
     def __init__(self, ruta: str | Path):
         self.ruta = Path(ruta)
