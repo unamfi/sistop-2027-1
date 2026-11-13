@@ -337,8 +337,31 @@ OK
 ```
 
 Todas las pruebas finalizaron correctamente, sin errores ni fallos.
+## 6. Uso de inteligencia artificial
 
-## 6. Referencia
+Durante el proyecto utilizamos ChatGPT como herramienta de apoyo en algunas partes del desarrollo.
+
+- **Lectura, exportación e importación:** lo utilizamos para resolver dudas sobre la estructura de FiUnamFS, revisar fragmentos de código y plantear casos de prueba, como el manejo de archivos duplicados, nombres inválidos y espacio insuficiente.
+
+- **Eliminación de archivos:** nos apoyamos en la propuesta del método de eliminación lógica y en la preparación de pruebas para comprobar que los clusters liberados pudieran reutilizarse sin afectar otros archivos.
+
+- **Interfaz gráfica y sincronización:** utilizamos la herramienta con mayor frecuencia para desarrollar y depurar partes de la interfaz con Tkinter y comprender cómo coordinar los dos hilos mediante `Queue`, `Lock` y `Condition`. También nos apoyó en la elaboración de las pruebas de concurrencia.
+
+Adicionalmente, utilizamos ChatGPT para organizar la documentación y revisar algunos mensajes de error. Las operaciones se probaron desde Git Bash y la interfaz gráfica, realizando correcciones cuando fue necesario. Al finalizar, se ejecutaron 37 pruebas automáticas correctamente.
+
+### Dificultades encontradas y soluciones
+
+Durante el desarrollo encontramos algunos problemas y situaciones que tuvimos que revisar:
+
+- **Eliminación y reutilización de espacio:** una de las dudas fue cómo liberar clusters sin afectar otros archivos. Decidimos marcar las entradas del directorio como disponibles y comprobar su reutilización. Al eliminar `BORRAR.TXT` y después importar `NUEVO.TXT`, verificamos que ambos utilizaron el cluster 7.
+
+- **Errores en la interfaz gráfica:** al modificar el botón de selección de imágenes apareció un error por colocar incorrectamente la instrucción `pack()`. Revisamos el mensaje de Python, separamos la creación del botón de su posicionamiento y comprobamos que la ventana volviera a funcionar.
+
+- **Sincronización de hilos:** necesitábamos evitar que dos trabajadores modificaran la imagen al mismo tiempo y conservar el orden de las solicitudes. Utilizamos una cola de trabajo, un bloqueo y una variable de condición. Después agregamos pruebas para comprobar que ambos trabajadores procesaran solicitudes y que las operaciones se ejecutaran en orden.
+
+Estos casos nos ayudaron a comprender mejor cómo se administra el espacio de un sistema de archivos y por qué es importante controlar el acceso a los recursos compartidos.
+
+## 7. Referencia
 
 Especificación oficial del proyecto FiUnamFS, Sistemas Operativos 2027-1, Facultad de Ingeniería, UNAM.
 
