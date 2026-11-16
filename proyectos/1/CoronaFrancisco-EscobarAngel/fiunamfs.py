@@ -40,6 +40,12 @@ def lee_directorio(disco):
         })
     return entradas
 
+def busca(disco, nombre):
+    for entrada in lee_directorio(disco):
+        if entrada['nombre'] == nombre:
+            return entrada
+    raise ValueError(f'No existe {nombre} en FiUnamFS')
+
 def listar(disco):
     entradas = lee_directorio(disco)
     lineas = [f'{"Nombre":15} {"Tamaño":>8} {"Cluster":>7}  {"Creación":16}  Modificación']
@@ -49,9 +55,45 @@ def listar(disco):
     lineas.append(f'\n{len(entradas)} archivos')
     return '\n'.join(lineas)
 
+def copia_a_equipo(disco, nombre, destino):
+    entrada = busca(disco, nombre)
+    if os.path.isdir(destino):
+        destino = os.path.join(destino, nombre)
+    if os.path.exists(destino):
+        raise ValueError(f'Ya existe {destino} en tu equipo')
+    disco.seek(entrada['cluster'] * tam_cluster)
+    datos = disco.read(entrada['tam'])
+    with open(destino, 'wb') as archivo:
+        archivo.write(datos)
+    return f'Se copió {nombre} a {destino} ({len(datos)} bytes)'
+
+def pide(operacion, *args):
+    try:
+        return operacion(disco, *args)
+    except (OSError, ValueError, UnicodeError) as e:
+        return f'Error: {e}'
+
+def menu():
+    while True:
+        print('\n1) Listar  2) Copiar a mi equipo  5) Salir')
+        opcion = input('Opción: ').strip()
+        if opcion == '1':
+            print(pide(listar))
+        elif opcion == '2':
+            nombre = input('Archivo de FiUnamFS: ').strip()
+            destino = input(f'Guardar como [{nombre}]: ').strip() or nombre
+            print(pide(copia_a_equipo, nombre, destino))
+        elif opcion == '5':
+            return
+        else:
+            print('Opción no válida')
+
 if len(sys.argv) != 2 or not os.path.isfile(sys.argv[1]):
     uso()
 etiqueta, tam_cluster, clusters_dir, clusters_total = lee_superbloque(sys.argv[1])
 print(f'Volumen: {etiqueta} ({clusters_total} clusters de {tam_cluster} bytes)')
-with open(sys.argv[1], 'rb') as disco:
-    print(listar(disco))
+with open(sys.argv[1], 'r+b') as disco:
+    try:
+        menu()
+    except (EOFError, KeyboardInterrupt):
+        print()
