@@ -48,3 +48,41 @@ La creación y validación básica del volumen ya fueron probadas satisfactoriam
 Las funciones de lectura del directorio, extracción, incorporación, eliminación, interfaz y sincronización entre hilos se desarrollarán en los siguientes avances.
 
 Este programa es una herramienta preliminar de preparación y prueba, no el administrador FiUnamFS completo.
+
+## Segundo avance: 15 de noviembre de 2026
+
+En esta etapa implementamos la lectura del directorio de FiUnamFS mediante el programa `listar_directorio.py`.
+
+El programa valida el superbloque y recorre las entradas de 64 bytes del directorio, identificando cuáles corresponden a archivos. Para cada archivo muestra su nombre, tamaño, clúster inicial, fecha de creación y fecha de última modificación.
+
+La imagen se abre en modo de solo lectura para evitar modificaciones accidentales.
+
+### Ejecución
+
+Desde la carpeta del equipo, podemos consultar la imagen proporcionada en el repositorio:
+
+```bash
+python3 listar_directorio.py ../fiunamfs.img
+```
+
+También podemos utilizar cualquier otra imagen compatible indicando su ruta.
+
+### Pruebas realizadas
+
+Probamos el programa con dos imágenes.
+
+**Imagen vacía:** el programa identificó las 128 entradas del directorio y mostró cero archivos.
+
+**Imagen proporcionada por el profesor:** identificó correctamente tres archivos:
+
+| Archivo | Tamaño | Clúster inicial |
+|---|---:|---:|
+| README.org | 31126 bytes | 6 |
+| logo.png | 126423 bytes | 22 |
+| mensaje.jpg | 254484 bytes | 84 |
+
+Los tres registran como fecha de creación y modificación el 5 de noviembre de 2026, a las 16:31:24.
+
+Con estas pruebas comprobamos que el programa puede interpretar el directorio y consultar sus archivos sin modificar el volumen.
+
+La extracción, incorporación y eliminación de archivos, así como la sincronización entre hilos, permanecen pendientes para los siguientes avances.
