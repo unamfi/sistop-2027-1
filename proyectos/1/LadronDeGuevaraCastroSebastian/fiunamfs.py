@@ -3,8 +3,9 @@ Estructuras del micro sistema de archivos FiUnamFS, proyecto de Sistemas
 Operativos (sistop-2027-1)
 Sebastián Ladrón de Guevara Castro
 
-Este módulo sabe leer el superbloque (cluster 0) y el directorio
-(clusters 1 a 4) del disco. La interfaz está en main.py.
+Este módulo sabe leer las tres zonas del disco, el superbloque (cluster 0),
+el directorio (clusters 1 a 4) y el área de datos. La interfaz está en
+main.py.
 """
 
 import math
@@ -134,6 +135,12 @@ class FiUnamFS:
             ))
         return entradas
 
+    def buscar(self, nombre):
+        for entrada in self.listar():
+            if entrada.nombre == nombre:
+                return entrada
+        return None
+
     # ---- Espacio ----
 
     def clusters_de(self, tamano):
@@ -144,3 +151,24 @@ class FiUnamFS:
         ocupados = sum(self.clusters_de(e.tamano) for e in self.listar())
         libres = self.clusters_totales - self.primer_cluster_datos - ocupados
         return max(libres, 0) * self.tam_cluster
+
+    # ---- Operaciones ----
+
+    def exportar(self, nombre, destino, avance=None):
+        """Copia un archivo de FiUnamFS a la ruta 'destino' de la computadora."""
+        entrada = self.buscar(nombre)
+        if entrada is None:
+            raise ErrorFiUnamFS(f'No existe "{nombre}" en FiUnamFS')
+
+        self.imagen.seek(entrada.cluster * self.tam_cluster)
+        copiado = 0
+        with open(destino, 'wb') as salida:
+            # Se copia de cluster en cluster para poder reportar el avance
+            while copiado < entrada.tamano:
+                bloque = self.imagen.read(min(self.tam_cluster, entrada.tamano - copiado))
+                if not bloque:
+                    raise ErrorFiUnamFS(f'"{nombre}" dice medir más de lo que cabe en la imagen')
+                salida.write(bloque)
+                copiado += len(bloque)
+                if avance:
+                    avance(copiado, entrada.tamano)

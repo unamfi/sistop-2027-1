@@ -2,7 +2,7 @@
 
 Ladrón de Guevara Castro Sebastián ([`Sebastian82879`](https://github.com/Sebastian82879)), entrega individual.
 
-Es un programa para trabajar con imágenes del sistema de archivos `FiUnamFS` versión `27-1`. Por ahora valida el superbloque y lista el contenido del directorio, las demás operaciones las voy agregando poco a poco.
+Es un programa para trabajar con imágenes del sistema de archivos `FiUnamFS` versión `27-1`. Por ahora valida el superbloque, lista el directorio y copia archivos de la imagen a la computadora.
 
 ## Entorno y requisitos
 
@@ -20,12 +20,13 @@ Si no se le pasa ninguna busca `fiunamfs.img` en la carpeta actual. Antes de hac
 
 ## Ejemplo de uso
 
-Todo se hace desde un menú con números. Así se ve con la imagen que nos dio el profe
+Todo se hace desde un menú con números, para elegir un archivo se escribe su número en el listado, nunca hay que teclear su nombre. Así se ve con la imagen que nos dio el profe
 
 ```
 === FiUnamFS · volumen "Disco de Gunnar" ===
   1) Listar los contenidos
-  2) Salir
+  2) Copiar un archivo de FiUnamFS a la computadora
+  3) Salir
 Elige una opción: 1
 
     #  Nombre              Tamaño  Cluster  Creado               Modificado
@@ -36,13 +37,30 @@ Elige una opción: 1
   3 archivo(s), 1,024 KB libres
 ```
 
+Para copiar un archivo hacia la computadora se elige la opción 2, luego el número del archivo y la carpeta de destino (con Enter se queda en la carpeta actual)
+
+```
+Elige una opción: 2
+  ...
+  Número del archivo a copiar (Enter para cancelar): 3
+  Carpeta de destino (Enter para la carpeta actual):
+  [##############################] 100%  254,484 de 254,484 bytes
+  Listo, se copió a /Users/sebas/proyecto/mensaje.jpg
+```
+
 ## Pruebas con la imagen del profe
 
-Con `fiunamfs.img` probé el listado, muestra los tres archivos con su tamaño, su cluster inicial y sus fechas. Las demás operaciones las voy a probar conforme las vaya agregando.
+Con `fiunamfs.img` probé lo que lleva el programa hasta ahora. El listado muestra los tres archivos con su tamaño, su cluster inicial y sus fechas. Copié los tres archivos a la computadora y se abren bien, el `README.org` se lee como texto y las dos imágenes se ven completas, además coinciden en tamaño con lo que dice el directorio.
 
 ## Contenidos del disco
 
-El volumen se llama `Disco de Gunnar` y trae tres archivos, `README.org` (31,126 bytes), `logo.png` (126,423 bytes) y `mensaje.jpg` (254,484 bytes). Todavía no puedo sacarlos de la imagen para ver qué son, eso viene en la siguiente etapa.
+El volumen se llama `Disco de Gunnar` y trae tres archivos.
+
+`README.org` (31,126 bytes) es el mismo planteamiento del proyecto que está en el repositorio, en formato Org.
+
+`logo.png` (126,423 bytes) es el escudo de la Facultad de Ingeniería, una imagen PNG de 354 × 425 pixeles.
+
+`mensaje.jpg` (254,484 bytes) es una foto de 1440 × 1200 pixeles de una persona sosteniendo una hoja que dice "¡Muy bien hecho! Lograste recuperar la información del sistema de archivos FiUNAMFS. ¡Sigue adelante! :-)".
 
 Algo curioso es que el cluster 5, el primero del área de datos, está libre porque `README.org` empieza en el 6.
 
@@ -58,7 +76,7 @@ Para que el menú se entienda sin leer nada las opciones están numeradas, los a
 
 ## Cómo está organizado
 
-El código está en dos archivos. `fiunamfs.py` tiene la clase `FiUnamFS`, que sabe leer el superbloque e interpretar el directorio. `main.py` tiene la interfaz, es el que se ejecuta. Por ahora todo corre en un solo hilo.
+El código está en dos archivos. `fiunamfs.py` tiene la clase `FiUnamFS`, que sabe leer el superbloque, interpretar el directorio y copiar los datos de un archivo a la computadora. `main.py` tiene la interfaz, es el que se ejecuta. Por ahora todo corre en un solo hilo.
 
 ## Estrategia
 
@@ -68,7 +86,9 @@ Una entrada cuenta como vacía si su tipo no es `F` o si su nombre es uno de los
 
 El directorio se parece mucho al de FAT que vimos en clase, cada entrada guarda el nombre, el cluster inicial, el tamaño y las fechas, solo que aquí mide 64 bytes en lugar de 32 y el nombre puede tener hasta 15 caracteres en lugar del formato 8.3. A diferencia de FAT el programa sí distingue mayúsculas de minúsculas, `README.org` y `readme.org` serían dos archivos distintos.
 
-Todavía me falta copiar archivos y eliminarlos, también separar el programa en dos hilos.
+Para copiar un archivo a la computadora me muevo a su cluster inicial y leo tantos bytes como diga su tamaño, de cluster en cluster para poder ir mostrando el avance.
+
+Todavía me falta copiar archivos hacia la imagen y eliminarlos, también separar el programa en dos hilos.
 
 ## Decisiones y dudas
 
