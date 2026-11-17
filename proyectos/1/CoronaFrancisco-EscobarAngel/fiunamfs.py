@@ -2,7 +2,16 @@
 import os
 import struct
 import sys
+import threading
 import time
+
+# Sólo el hilo del disco abre la imagen. La interfaz le deja pedidos en una
+# lista y espera la respuesta, igual que productores y consumidores.
+pedidos = []
+respuestas = []
+mutex = threading.Semaphore(1)
+hay_pedido = threading.Semaphore(0)
+hay_respuesta = threading.Semaphore(0)
 
 # Así se ven las entradas vacías en la imagen de ejemplo
 entrada_vacia = b'-' + b'#' * 14 + b'\x00' + bytes(8) + b'0' * 28 + bytes(12)
@@ -118,11 +127,31 @@ def elimina(disco, nombre):
     escribe_entrada(disco, entrada['num'], entrada_vacia)
     return f'Se eliminó {nombre}'
 
+def atiende_disco(ruta):
+    with open(ruta, 'r+b') as disco:
+        while True:
+            hay_pedido.acquire()
+            with mutex:
+                operacion, args = pedidos.pop(0)
+            if operacion is None:
+                break
+            try:
+                resultado = operacion(disco, *args)
+            except (OSError, ValueError, UnicodeError) as e:
+                resultado = f'Error: {e}'
+            with mutex:
+                respuestas.append(resultado)
+            hay_respuesta.release()
+
 def pide(operacion, *args):
-    try:
-        return operacion(disco, *args)
-    except (OSError, ValueError, UnicodeError) as e:
-        return f'Error: {e}'
+    with mutex:
+        pedidos.append((operacion, args))
+    hay_pedido.release()
+    if operacion is None:
+        return
+    hay_respuesta.acquire()
+    with mutex:
+        return respuestas.pop(0)
 
 def menu():
     while True:
@@ -150,8 +179,11 @@ if len(sys.argv) != 2 or not os.path.isfile(sys.argv[1]):
     uso()
 etiqueta, tam_cluster, clusters_dir, clusters_total = lee_superbloque(sys.argv[1])
 print(f'Volumen: {etiqueta} ({clusters_total} clusters de {tam_cluster} bytes)')
-with open(sys.argv[1], 'r+b') as disco:
-    try:
-        menu()
-    except (EOFError, KeyboardInterrupt):
-        print()
+hilo_disco = threading.Thread(target=atiende_disco, args=[sys.argv[1]])
+hilo_disco.start()
+try:
+    menu()
+except (EOFError, KeyboardInterrupt):
+    print()
+pide(None)
+hilo_disco.join()
