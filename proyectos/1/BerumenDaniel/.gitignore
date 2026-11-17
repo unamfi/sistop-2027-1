@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+
+*.img
+salida/
+
+.venv/
+venv/
+
+.vscode/
+.idea/
+*.swp
+.DS_Store
