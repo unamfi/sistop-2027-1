@@ -18,6 +18,9 @@ def lee_superbloque(ruta):
     etiqueta = datos[20:36].decode('ascii').rstrip('\x00 ')
     return (etiqueta,) + struct.unpack('<III', datos[40:52])
 
+def clusters_que_ocupa(tam):
+    return max(1, -(-tam // tam_cluster))
+
 def fecha(texto):
     return f'{texto[0:4]}-{texto[4:6]}-{texto[6:8]} {texto[8:10]}:{texto[10:12]}'
 
@@ -46,6 +49,21 @@ def busca(disco, nombre):
             return entrada
     raise ValueError(f'No existe {nombre} en FiUnamFS')
 
+def busca_espacio(entradas, tam):
+    # Asignación contigua: el primer hueco entre archivos donde quepa completo
+    inicio = 1 + clusters_dir
+    for entrada in sorted(entradas, key=lambda e: e['cluster']):
+        if entrada['cluster'] - inicio >= clusters_que_ocupa(tam):
+            return inicio
+        inicio = max(inicio, entrada['cluster'] + clusters_que_ocupa(entrada['tam']))
+    if clusters_total - inicio >= clusters_que_ocupa(tam):
+        return inicio
+    raise ValueError('No hay espacio contiguo suficiente en FiUnamFS')
+
+def escribe_entrada(disco, num, datos):
+    disco.seek(tam_cluster + num * 64)
+    disco.write(datos)
+
 def listar(disco):
     entradas = lee_directorio(disco)
     lineas = [f'{"Nombre":15} {"Tamaño":>8} {"Cluster":>7}  {"Creación":16}  Modificación']
@@ -67,6 +85,30 @@ def copia_a_equipo(disco, nombre, destino):
         archivo.write(datos)
     return f'Se copió {nombre} a {destino} ({len(datos)} bytes)'
 
+def copia_a_fiunamfs(disco, origen):
+    nombre = os.path.basename(origen)
+    if not nombre.isascii() or not nombre.isprintable() or len(nombre) > 14:
+        raise ValueError('El nombre debe ser ASCII y medir máximo 14 caracteres')
+    with open(origen, 'rb') as archivo:
+        datos = archivo.read()
+    entradas = lee_directorio(disco)
+    if any(e['nombre'] == nombre for e in entradas):
+        raise ValueError(f'Ya existe {nombre} en FiUnamFS')
+    ocupadas = [e['num'] for e in entradas]
+    libres = [num for num in range(clusters_dir * tam_cluster // 64) if num not in ocupadas]
+    if not libres:
+        raise ValueError('El directorio está lleno')
+    cluster = busca_espacio(entradas, len(datos))
+    disco.seek(cluster * tam_cluster)
+    disco.write(datos)
+    creado = time.strftime('%Y%m%d%H%M%S')
+    modificado = time.strftime('%Y%m%d%H%M%S', time.localtime(os.path.getmtime(origen)))
+    entrada = b'F' + nombre.ljust(14).encode('ascii') + b'\x00'
+    entrada += struct.pack('<II', len(datos), cluster)
+    entrada += creado.encode('ascii') + modificado.encode('ascii') + bytes(12)
+    escribe_entrada(disco, libres[0], entrada)
+    return f'Se copió {nombre} a FiUnamFS en el cluster {cluster}'
+
 def pide(operacion, *args):
     try:
         return operacion(disco, *args)
@@ -75,7 +117,7 @@ def pide(operacion, *args):
 
 def menu():
     while True:
-        print('\n1) Listar  2) Copiar a mi equipo  5) Salir')
+        print('\n1) Listar  2) Copiar a mi equipo  3) Copiar a FiUnamFS  5) Salir')
         opcion = input('Opción: ').strip()
         if opcion == '1':
             print(pide(listar))
@@ -83,6 +125,9 @@ def menu():
             nombre = input('Archivo de FiUnamFS: ').strip()
             destino = input(f'Guardar como [{nombre}]: ').strip() or nombre
             print(pide(copia_a_equipo, nombre, destino))
+        elif opcion == '3':
+            origen = input('Archivo de tu equipo: ').strip()
+            print(pide(copia_a_fiunamfs, origen))
         elif opcion == '5':
             return
         else:
