@@ -2,11 +2,11 @@
 
 Ladrón de Guevara Castro Sebastián ([`Sebastian82879`](https://github.com/Sebastian82879)), entrega individual.
 
-Es un programa para trabajar con imágenes del sistema de archivos `FiUnamFS` versión `27-1`. Por ahora valida el superbloque, lista el directorio y copia archivos de la imagen a la computadora.
+Es un programa para trabajar con imágenes del sistema de archivos `FiUnamFS` versión `27-1`. Por ahora lista el directorio y copia archivos de la imagen a la computadora y de la computadora a la imagen.
 
 ## Entorno y requisitos
 
-Lo escribí en Python 3 (CPython) y necesita la versión 3.8 o más reciente, yo lo probé con Python 3.13. Solo usa la biblioteca estándar (`struct`, `math`, `datetime`, `dataclasses`), así que no hay que instalar nada con `pip`. Debería funcionar en cualquier sistema donde corra Python, la interfaz es de texto y se usa desde la terminal.
+Lo escribí en Python 3 (CPython) y necesita la versión 3.8 o más reciente, yo lo probé con Python 3.13. Solo usa la biblioteca estándar (`struct`, `math`, `os`, `datetime`, `dataclasses`), así que no hay que instalar nada con `pip`. Debería funcionar en cualquier sistema donde corra Python, la interfaz es de texto y se usa desde la terminal.
 
 ## Cómo ejecutarlo
 
@@ -18,6 +18,8 @@ python3 main.py ruta/a/fiunamfs.img
 
 Si no se le pasa ninguna busca `fiunamfs.img` en la carpeta actual. Antes de hacer cualquier cosa revisa que la imagen diga `FiUnamFS` y que sea la versión `27-1`, si no se niega a abrirla para no dañar un archivo que no es el correcto.
 
+Como el programa escribe sobre la imagen conviene trabajar con una copia y dejar la original intacta. Si la imagen no tiene permiso de escritura el programa la abre de todos modos, pero solo deja listar y copiar hacia la computadora.
+
 ## Ejemplo de uso
 
 Todo se hace desde un menú con números, para elegir un archivo se escribe su número en el listado, nunca hay que teclear su nombre. Así se ve con la imagen que nos dio el profe
@@ -26,7 +28,8 @@ Todo se hace desde un menú con números, para elegir un archivo se escribe su n
 === FiUnamFS · volumen "Disco de Gunnar" ===
   1) Listar los contenidos
   2) Copiar un archivo de FiUnamFS a la computadora
-  3) Salir
+  3) Copiar un archivo de la computadora a FiUnamFS
+  4) Salir
 Elige una opción: 1
 
     #  Nombre              Tamaño  Cluster  Creado               Modificado
@@ -48,9 +51,21 @@ Elige una opción: 2
   Listo, se copió a /Users/sebas/proyecto/mensaje.jpg
 ```
 
+Para copiar hacia `FiUnamFS` se puede escribir la ruta o arrastrar el archivo a la terminal, si su nombre pasa de 15 caracteres el programa pide otro
+
+```
+Elige una opción: 3
+
+  Ruta del archivo a copiar (puedes arrastrarlo aquí): '/Users/sebas/un nombre muy largo.txt'
+  El nombre "un nombre muy largo.txt" pasa de 15 caracteres
+  Nombre dentro de FiUnamFS (máximo 15 caracteres, Enter para cancelar): nota.txt
+  [##############################] 100%  11 de 11 bytes
+  Listo, se copió como "nota.txt"
+```
+
 ## Pruebas con la imagen del profe
 
-Con `fiunamfs.img` probé lo que lleva el programa hasta ahora. El listado muestra los tres archivos con su tamaño, su cluster inicial y sus fechas. Copié los tres archivos a la computadora y se abren bien, el `README.org` se lee como texto y las dos imágenes se ven completas, además coinciden en tamaño con lo que dice el directorio.
+Con `fiunamfs.img` probé lo que lleva el programa hasta ahora, siempre sobre una copia. El listado muestra los tres archivos con su tamaño, su cluster inicial y sus fechas. Copié los tres archivos a la computadora y se abren bien, el `README.org` se lee como texto y las dos imágenes se ven completas, además coinciden en tamaño con lo que dice el directorio. Después copié un archivo de texto hacia la imagen, el programa lo acomodó en el cluster 5 (el hueco libre que hay antes del `README.org`) y al sacarlo de nuevo quedó idéntico al original.
 
 ## Contenidos del disco
 
@@ -76,7 +91,7 @@ Para que el menú se entienda sin leer nada las opciones están numeradas, los a
 
 ## Cómo está organizado
 
-El código está en dos archivos. `fiunamfs.py` tiene la clase `FiUnamFS`, que sabe leer el superbloque, interpretar el directorio y copiar los datos de un archivo a la computadora. `main.py` tiene la interfaz, es el que se ejecuta. Por ahora todo corre en un solo hilo.
+El código está en dos archivos. `fiunamfs.py` tiene la clase `FiUnamFS`, que sabe leer el superbloque, interpretar el directorio y mover datos entre la imagen y la computadora. `main.py` tiene la interfaz, es el que se ejecuta. Por ahora todo corre en un solo hilo.
 
 ## Estrategia
 
@@ -86,10 +101,18 @@ Una entrada cuenta como vacía si su tipo no es `F` o si su nombre es uno de los
 
 El directorio se parece mucho al de FAT que vimos en clase, cada entrada guarda el nombre, el cluster inicial, el tamaño y las fechas, solo que aquí mide 64 bytes en lugar de 32 y el nombre puede tener hasta 15 caracteres en lugar del formato 8.3. A diferencia de FAT el programa sí distingue mayúsculas de minúsculas, `README.org` y `readme.org` serían dos archivos distintos.
 
-Para copiar un archivo a la computadora me muevo a su cluster inicial y leo tantos bytes como diga su tamaño, de cluster en cluster para poder ir mostrando el avance.
+Como la asignación es contigua un archivo necesita clusters seguidos, para copiar uno nuevo ordeno los archivos por su cluster inicial y busco el primer hueco entre ellos donde quepa (primer ajuste). El área de datos empieza después del directorio, en el cluster 5. Primero escribo los datos y hasta el final la entrada del directorio, así si algo falla a la mitad el archivo simplemente no aparece y el directorio no queda apuntando a datos incompletos.
 
-Todavía me falta copiar archivos hacia la imagen y eliminarlos, también separar el programa en dos hilos.
+FiUnamFS no tiene un mapa de bits para saber qué clusters están libres, como dice la especificación toda la información de los archivos está en el directorio. Por eso para encontrar espacio reviso el directorio completo y calculo qué rango de clusters ocupa cada archivo, lo que no ocupe ninguno está libre.
+
+Todavía me falta eliminar archivos y separar el programa en dos hilos.
 
 ## Decisiones y dudas
 
-La imagen del profe no sigue al pie de la letra la especificación en dos cosas. La primera es que las entradas vacías llevan `##############` en el nombre y no `#..............` como dice el planteamiento, mi programa reconoce las dos formas. La segunda es que los nombres se rellenan con espacios y terminan con un byte nulo (por ejemplo `README.org    \0`), al leer quito los dos para quedarme con el nombre.
+La imagen del profe no sigue al pie de la letra la especificación en dos cosas. La primera es que las entradas vacías llevan `##############` en el nombre y no `#..............` como dice el planteamiento, mi programa reconoce las dos formas. La segunda es que los nombres se rellenan con espacios y terminan con un byte nulo (por ejemplo `README.org    \0`), al leer quito los dos y al escribir relleno igual que la imagen, así lo que escribe mi programa se ve igual que lo que ya traía el disco.
+
+Los nombres solo pueden llevar caracteres ASCII imprimibles, además no dejo usar `/` porque al copiar el archivo de regreso a la computadora se confundiría con una carpeta, tampoco dejo que empiecen o terminen con espacios porque se perderían al leerlos.
+
+Al copiar un archivo hacia `FiUnamFS` le pongo como fecha de creación y de modificación la hora actual, igual que cuando se copia un archivo con `cp`.
+
+Cuando hay espacio libre suficiente pero repartido en varios huecos el programa lo dice con un mensaje distinto, para que se entienda por qué no se pudo copiar aunque el listado diga que sí hay espacio.

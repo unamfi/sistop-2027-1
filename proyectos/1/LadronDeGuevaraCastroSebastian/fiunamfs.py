@@ -3,12 +3,13 @@ Estructuras del micro sistema de archivos FiUnamFS, proyecto de Sistemas
 Operativos (sistop-2027-1)
 Sebastián Ladrón de Guevara Castro
 
-Este módulo sabe leer las tres zonas del disco, el superbloque (cluster 0),
-el directorio (clusters 1 a 4) y el área de datos. La interfaz está en
-main.py.
+Este módulo sabe leer y escribir las tres zonas del disco, el superbloque
+(cluster 0), el directorio (clusters 1 a 4) y el área de datos. La interfaz
+está en main.py.
 """
 
 import math
+import os
 import struct
 from dataclasses import dataclass
 from datetime import datetime
@@ -57,12 +58,35 @@ def formatear_fecha(fecha):
         return fecha
 
 
+def validar_nombre(nombre):
+    """Lanza ErrorFiUnamFS si el nombre no se puede guardar en el directorio."""
+    if not nombre:
+        raise ErrorFiUnamFS('El nombre no puede estar vacío')
+    if len(nombre) > LARGO_NOMBRE:
+        raise ErrorFiUnamFS(f'El nombre "{nombre}" pasa de {LARGO_NOMBRE} caracteres')
+    # La especificación solo permite US-ASCII de 7 bits. Además descarto los
+    # caracteres de control y la diagonal, que darían problemas al copiar el
+    # archivo de regreso a la computadora
+    if not nombre.isascii() or any(not c.isprintable() or c == '/' for c in nombre):
+        raise ErrorFiUnamFS(f'El nombre "{nombre}" tiene caracteres no permitidos (solo ASCII, sin "/")')
+    # Los espacios de las orillas se pierden porque el nombre se rellena con
+    # espacios y al leerlo se recortan
+    if nombre != nombre.strip():
+        raise ErrorFiUnamFS('El nombre no puede empezar ni terminar con espacios')
+    if nombre in NOMBRES_RESERVADOS:
+        raise ErrorFiUnamFS('Ese nombre está reservado para las entradas vacías')
+
+
 class FiUnamFS:
     def __init__(self, ruta):
-        # Por ahora el programa no modifica la imagen, así que basta con abrirla
-        # para lectura
+        # Si la imagen no tiene permiso de escritura se abre solo para lectura,
+        # así todavía se puede listar y copiar hacia la computadora
+        self.solo_lectura = False
         try:
-            self.imagen = open(ruta, 'rb')
+            self.imagen = open(ruta, 'r+b')
+        except PermissionError:
+            self.solo_lectura = True
+            self.imagen = self._abrir_solo_lectura(ruta)
         except OSError as e:
             raise ErrorFiUnamFS(f'No se pudo abrir "{ruta}": {e.strerror}')
         try:
@@ -70,6 +94,17 @@ class FiUnamFS:
         except Exception:
             self.imagen.close()
             raise
+
+    @staticmethod
+    def _abrir_solo_lectura(ruta):
+        try:
+            return open(ruta, 'rb')
+        except OSError as e:
+            raise ErrorFiUnamFS(f'No se pudo abrir "{ruta}": {e.strerror}')
+
+    def _revisar_escritura(self):
+        if self.solo_lectura:
+            raise ErrorFiUnamFS('La imagen no tiene permiso de escritura, solo se puede listar y copiar hacia la computadora')
 
     def cerrar(self):
         self.imagen.close()
@@ -141,6 +176,16 @@ class FiUnamFS:
                 return entrada
         return None
 
+    def _escribir_entrada(self, indice, tipo, nombre, tamano, cluster, creado, modificado):
+        # El nombre se rellena igual que en la imagen del profe, con espacios
+        # hasta el byte 14 y un nulo al final (si mide 15 no queda lugar para el nulo)
+        campo_nombre = nombre.encode('ascii').ljust(LARGO_NOMBRE - 1, b' ')
+        datos = struct.pack(FORMATO_ENTRADA, tipo, campo_nombre, tamano,
+                            cluster, creado.encode('ascii'), modificado.encode('ascii'))
+        self.imagen.seek(self._posicion_entrada(indice))
+        self.imagen.write(datos)
+        self.imagen.flush()
+
     # ---- Espacio ----
 
     def clusters_de(self, tamano):
@@ -151,6 +196,24 @@ class FiUnamFS:
         ocupados = sum(self.clusters_de(e.tamano) for e in self.listar())
         libres = self.clusters_totales - self.primer_cluster_datos - ocupados
         return max(libres, 0) * self.tam_cluster
+
+    def _buscar_hueco(self, clusters_necesarios, entradas):
+        """
+        Busca un hueco con primer ajuste. Como la asignación es contigua el
+        archivo necesita clusters seguidos, así que recorro los archivos
+        ordenados por su cluster inicial y regreso el primer espacio entre
+        ellos donde quepa.
+        """
+        ocupados = sorted((e.cluster, e.cluster + self.clusters_de(e.tamano))
+                          for e in entradas if e.tamano > 0)
+        candidato = self.primer_cluster_datos
+        for inicio, fin in ocupados:
+            if inicio - candidato >= clusters_necesarios:
+                return candidato
+            candidato = max(candidato, fin)
+        if self.clusters_totales - candidato >= clusters_necesarios:
+            return candidato
+        return None
 
     # ---- Operaciones ----
 
@@ -172,3 +235,44 @@ class FiUnamFS:
                 copiado += len(bloque)
                 if avance:
                     avance(copiado, entrada.tamano)
+
+    def importar(self, origen, nombre, avance=None):
+        """Copia el archivo 'origen' de la computadora a FiUnamFS como 'nombre'."""
+        self._revisar_escritura()
+        validar_nombre(nombre)
+        if not os.path.isfile(origen):
+            raise ErrorFiUnamFS(f'"{origen}" no es un archivo')
+
+        entradas = self.listar()
+        if any(e.nombre == nombre for e in entradas):
+            raise ErrorFiUnamFS(f'Ya existe "{nombre}" en FiUnamFS')
+
+        ocupadas = {e.indice for e in entradas}
+        indice = next((i for i in range(self.total_entradas) if i not in ocupadas), None)
+        if indice is None:
+            raise ErrorFiUnamFS('El directorio ya no tiene entradas libres')
+
+        tamano = os.path.getsize(origen)
+        necesarios = self.clusters_de(tamano)
+        cluster = self._buscar_hueco(necesarios, entradas)
+        if cluster is None:
+            if self.espacio_libre() >= tamano:
+                raise ErrorFiUnamFS('Hay espacio suficiente pero no está contiguo')
+            raise ErrorFiUnamFS('No hay espacio suficiente en FiUnamFS')
+
+        # Primero se escriben los datos y al final la entrada del directorio,
+        # así si algo falla a la mitad el archivo simplemente no aparece
+        self.imagen.seek(cluster * self.tam_cluster)
+        copiado = 0
+        with open(origen, 'rb') as entrada_pc:
+            while copiado < tamano:
+                bloque = entrada_pc.read(self.tam_cluster)
+                if not bloque:
+                    break
+                self.imagen.write(bloque)
+                copiado += len(bloque)
+                if avance:
+                    avance(copiado, tamano)
+
+        ahora = datetime.now().strftime(FORMATO_FECHA)
+        self._escribir_entrada(indice, TIPO_ARCHIVO, nombre, copiado, cluster, ahora, ahora)

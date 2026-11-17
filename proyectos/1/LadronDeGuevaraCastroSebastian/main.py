@@ -3,8 +3,8 @@
 Interfaz del proyecto FiUnamFS, Sistemas Operativos (sistop-2027-1)
 Sebastián Ladrón de Guevara Castro
 
-Menú de texto para listar los archivos de una imagen FiUnamFS y copiarlos
-a la computadora. Por ahora todo corre en un solo hilo, la interfaz llama
+Menú de texto para listar archivos de una imagen FiUnamFS y copiarlos en las
+dos direcciones. Por ahora todo corre en un solo hilo, la interfaz llama
 directamente a los métodos de FiUnamFS.
 
 Se ejecuta con python3 main.py [imagen], si no se le pasa la imagen busca
@@ -14,7 +14,7 @@ fiunamfs.img en la carpeta actual.
 import os
 import sys
 
-from fiunamfs import FiUnamFS, ErrorFiUnamFS, LARGO_NOMBRE, formatear_fecha
+from fiunamfs import FiUnamFS, ErrorFiUnamFS, LARGO_NOMBRE, formatear_fecha, validar_nombre
 
 
 def dibujar_barra(hecho, total, ancho=30):
@@ -77,10 +77,35 @@ class Interfaz:
         self.con_avance(self.fs.exportar, entrada.nombre, destino)
         print(f'  Listo, se copió a {os.path.abspath(destino)}')
 
+    def copiar_hacia_fiunamfs(self):
+        origen = limpiar_ruta(input('\n  Ruta del archivo a copiar (puedes arrastrarlo aquí): '))
+        if not origen:
+            return
+        if not os.path.isfile(origen):
+            print(f'  "{origen}" no es un archivo')
+            return
+
+        # Se propone el mismo nombre, pero si no cabe en los 15 caracteres o
+        # tiene caracteres raros se le pide otro al usuario
+        nombre = os.path.basename(origen)
+        while True:
+            try:
+                validar_nombre(nombre)
+                break
+            except ErrorFiUnamFS as e:
+                print(f'  {e}')
+                nombre = input(f'  Nombre dentro de FiUnamFS (máximo {LARGO_NOMBRE} caracteres, Enter para cancelar): ').strip()
+                if not nombre:
+                    return
+
+        self.con_avance(self.fs.importar, origen, nombre)
+        print(f'  Listo, se copió como "{nombre}"')
+
     def menu(self):
         opciones = {
             '1': ('Listar los contenidos', self.mostrar_listado),
             '2': ('Copiar un archivo de FiUnamFS a la computadora', self.copiar_hacia_computadora),
+            '3': ('Copiar un archivo de la computadora a FiUnamFS', self.copiar_hacia_fiunamfs),
         }
         salir = str(len(opciones) + 1)
         while True:
@@ -124,6 +149,8 @@ def main():
     except ErrorFiUnamFS as e:
         print(f'Error: {e}', file=sys.stderr)
         sys.exit(1)
+    if fs.solo_lectura:
+        print('Aviso: la imagen no tiene permiso de escritura, solo se puede listar y copiar hacia la computadora')
 
     try:
         Interfaz(fs).menu()
