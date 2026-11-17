@@ -77,6 +77,9 @@ public:
 
     // Muestra la información cargada desde el directorio.
     void debugDirectory() const;
-};
+
+    /// Muestra los archivos encontrados dentro del directorio.
+    void listFiles() const;
+    };
 
 #endif

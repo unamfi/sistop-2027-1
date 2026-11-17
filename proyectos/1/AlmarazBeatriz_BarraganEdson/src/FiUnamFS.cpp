@@ -14,6 +14,7 @@
 #include "../include/FiUnamFS.h"
 #include "../include/Utils.h"
 
+#include <iomanip>
 #include <iostream>
 
 //Abre la imagen binaria del sistema de archivos.
@@ -30,13 +31,7 @@ bool FiUnamFS::openImage(
     return image.is_open();
 }
 
-/**
- * Obtiene la información relevante del superbloque.
- *
- * Los desplazamientos utilizados corresponden
- * exactamente a la especificación proporcionada
- * para FiUnamFS.
- */
+//Obtiene la información relevante del superbloque.
 bool FiUnamFS::loadSuperBlock() {
     if(!image.is_open()) {
         return false;
@@ -208,4 +203,43 @@ void FiUnamFS::debugDirectory() const {
             << file.filename
             << '\n';
     }
+}
+
+/**
+ * Muestra los archivos almacenados
+ * en memoria de forma tabulada.
+ */
+void FiUnamFS::listFiles() const {
+    std::cout
+        << "\n========================================\n";
+
+    std::cout
+        << "      ARCHIVOS EN FIUNAMFS\n";
+
+    std::cout
+        << "========================================\n\n";
+
+    std::cout
+        << std::left
+        << std::setw(18) << "Nombre"
+        << std::setw(18) << "Tamano"
+        << std::setw(18) << "Cluster"
+        << '\n';
+
+    std::cout
+        << "--------------------------------------------------\n";
+
+    for(const auto& file : files) {
+        std::cout
+            << std::left
+            << std::setw(18) << file.filename
+            << std::setw(18) << file.size
+            << std::setw(18) << file.startCluster
+            << '\n';
+    }
+
+    std::cout
+        << "\nTotal de archivos: "
+        << files.size()
+        << '\n';
 }

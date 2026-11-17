@@ -59,9 +59,11 @@ int main() {
     // definidas en los clusters 1 al 4.
     fs.loadDirectory();
 
-    // Mostrar los archivos detectados
-    // (salida temporal para depuración).
-    fs.debugDirectory();
+    // Mostrar archivos encontrados
+    fs.listFiles();
+
+    // Mostrar los archivos detectados (salida para depuración).
+    //fs.debugDirectory();
 
     return 0;
 }
