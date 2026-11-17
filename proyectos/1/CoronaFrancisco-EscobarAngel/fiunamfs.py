@@ -4,6 +4,9 @@ import struct
 import sys
 import time
 
+# Así se ven las entradas vacías en la imagen de ejemplo
+entrada_vacia = b'-' + b'#' * 14 + b'\x00' + bytes(8) + b'0' * 28 + bytes(12)
+
 def uso():
     print(f'Invocación: {sys.argv[0]} <imagen de FiUnamFS>')
     sys.exit(1)
@@ -109,6 +112,12 @@ def copia_a_fiunamfs(disco, origen):
     escribe_entrada(disco, libres[0], entrada)
     return f'Se copió {nombre} a FiUnamFS en el cluster {cluster}'
 
+def elimina(disco, nombre):
+    entrada = busca(disco, nombre)
+    # Basta con liberar la entrada; los datos se quedan hasta que otro archivo ocupe ese espacio
+    escribe_entrada(disco, entrada['num'], entrada_vacia)
+    return f'Se eliminó {nombre}'
+
 def pide(operacion, *args):
     try:
         return operacion(disco, *args)
@@ -117,7 +126,7 @@ def pide(operacion, *args):
 
 def menu():
     while True:
-        print('\n1) Listar  2) Copiar a mi equipo  3) Copiar a FiUnamFS  5) Salir')
+        print('\n1) Listar  2) Copiar a mi equipo  3) Copiar a FiUnamFS  4) Eliminar  5) Salir')
         opcion = input('Opción: ').strip()
         if opcion == '1':
             print(pide(listar))
@@ -128,6 +137,10 @@ def menu():
         elif opcion == '3':
             origen = input('Archivo de tu equipo: ').strip()
             print(pide(copia_a_fiunamfs, origen))
+        elif opcion == '4':
+            nombre = input('Archivo a eliminar: ').strip()
+            if input(f'¿Seguro que quieres borrar {nombre}? (s/n): ').strip().lower() == 's':
+                print(pide(elimina, nombre))
         elif opcion == '5':
             return
         else:
