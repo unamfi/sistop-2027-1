@@ -77,8 +77,7 @@ bool FiUnamFS::loadSuperBlock() {
  * Comprueba que la imagen corresponda
  * a un sistema de archivos compatible.
  */
-bool FiUnamFS::validate()
-{
+bool FiUnamFS::validate() {
     return
         superBlock.fileSystemName ==
         "FiUnamFS"
@@ -91,8 +90,7 @@ bool FiUnamFS::validate()
  * Muestra los metadatos principales
  * encontrados en el superbloque.
  */
-void FiUnamFS::printInfo() const
-{
+void FiUnamFS::printInfo() const {
     std::cout
         << "\n=== SUPERBLOQUE ===\n";
 
@@ -125,4 +123,89 @@ void FiUnamFS::printInfo() const
         << "Clusters totales: "
         << superBlock.totalClusters
         << '\n';
+}
+
+void FiUnamFS::loadDirectory() {
+    // Limpiar información previa
+    files.clear();
+
+    /*
+     * El directorio comienza en el cluster 1.
+     * Cluster: 2048 bytes
+     */
+    image.seekg(2048);
+
+    for(int i = 0; i < 128; i++) {
+        DirectoryEntry entry;
+
+        // Tipo de entrada
+        image.read(
+            &entry.type,
+            1
+        );
+
+        // Si la entrada está vacía, avanzamos hasta la siguiente.
+        if(entry.type != 'F') {
+            image.seekg(
+                63,
+                std::ios::cur
+            );
+
+            continue;
+        }
+
+        // Nombre (15 bytes)
+        entry.filename =
+            readFixedString(
+                image,
+                15
+            );
+
+        // Tamaño del archivo
+        entry.size =
+            readLittleEndian32(
+                image
+            );
+
+        //Cluster inicial
+        entry.startCluster =
+            readLittleEndian32(
+                image
+            );
+
+        // Fecha de creación
+        entry.creationDate =
+            readFixedString(
+                image,
+                14
+            );
+
+        // Fecha de modificación
+        entry.modificationDate =
+            readFixedString(
+                image,
+                14
+            );
+
+        // Área reservada
+        image.seekg(
+            12,
+            std::ios::cur
+        );
+
+        files.push_back(entry);
+    }
+}
+
+void FiUnamFS::debugDirectory() const {
+    std::cout
+        << "\nArchivos encontrados: "
+        << files.size()
+        << "\n\n";
+
+    for(const auto& file : files) {
+        std::cout
+            << file.filename
+            << '\n';
+    }
 }

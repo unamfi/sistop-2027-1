@@ -1,23 +1,22 @@
 /**
- * Proyecto: Implementación de FiUnamFS
- * Materia: Sistemas Operativos
- *
  * Descripción:
  * Punto de entrada principal del programa.
- * Para este segundo commit únicamente se realiza:
+ * En esta etapa del desarrollo el programa:
  *
- * - Apertura de la imagen
- * - Lectura del superbloque
- * - Validación del sistema de archivos
- * - Impresión de la información obtenida
+ * - Abre la imagen FiUnamFS.
+ * - Lee y valida el superbloque.
+ * - Muestra la información general del volumen.
+ * - Lee las entradas del directorio.
+ * - Carga en memoria los archivos válidos encontrados.
+ *
+ * Este avance corresponde al tercer commit funcional del proyecto.
  */
 
 #include "../include/FiUnamFS.h"
 
 #include <iostream>
 
-int main()
-{
+int main() {
     // Instancia principal del sistema de archivos
     FiUnamFS fs;
 
@@ -34,8 +33,7 @@ int main()
     std::cout << "Imagen abierta correctamente.\n";
 
     // Leer información del superbloque
-    if (!fs.loadSuperBlock())
-    {
+    if (!fs.loadSuperBlock()) {
         std::cerr
             << "Error: No fue posible leer el superbloque.\n";
 
@@ -43,8 +41,7 @@ int main()
     }
 
     // Validar que sea una imagen FiUnamFS válida
-    if (!fs.validate())
-    {
+    if (!fs.validate()) {
         std::cerr
             << "Error: El archivo no corresponde "
             << "a una imagen valida de FiUnamFS.\n";
@@ -55,8 +52,16 @@ int main()
     std::cout
         << "\nSistema de archivos validado correctamente.\n";
 
-    // Mostrar información obtenida
+    // Mostrar información general obtenida desde el superbloque.
     fs.printInfo();
+
+    // Leer las entradas de directorio
+    // definidas en los clusters 1 al 4.
+    fs.loadDirectory();
+
+    // Mostrar los archivos detectados
+    // (salida temporal para depuración).
+    fs.debugDirectory();
 
     return 0;
 }
