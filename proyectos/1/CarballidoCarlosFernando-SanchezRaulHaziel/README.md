@@ -86,3 +86,35 @@ Los tres registran como fecha de creación y modificación el 5 de noviembre de 
 Con estas pruebas comprobamos que el programa puede interpretar el directorio y consultar sus archivos sin modificar el volumen.
 
 La extracción, incorporación y eliminación de archivos, así como la sincronización entre hilos, permanecen pendientes para los siguientes avances.
+
+## Tercer avance: 17 de noviembre de 2026
+
+En esta etapa implementamos la extracción de archivos desde FiUnamFS hacia el sistema operativo anfitrión mediante `extraer_archivo.py`.
+
+El programa utiliza las funciones de lectura y validación desarrolladas anteriormente. Primero localiza el archivo solicitado dentro del directorio, después calcula su desplazamiento a partir del clúster inicial y finalmente copia la cantidad exacta de bytes indicada por su tamaño.
+
+La imagen se abre en modo de solo lectura y el programa evita sobrescribir archivos existentes en el destino.
+
+### Ejecución
+
+Desde la carpeta del proyecto:
+
+```bash
+python3 extraer_archivo.py ../fiunamfs.img README.org /tmp/fiunamfs_readme_extraido.org
+```
+
+### Pruebas realizadas
+
+Utilizamos la imagen de referencia proporcionada por el profesor y extrajimos sus tres archivos:
+
+| Archivo | Tamaño extraído |
+|---|---:|
+| README.org | 31126 bytes |
+| logo.png | 126423 bytes |
+| mensaje.jpg | 254484 bytes |
+
+Posteriormente comparamos los bytes extraídos con los almacenados en la imagen FiUnamFS. Las tres comparaciones fueron idénticas.
+
+Con esto comprobamos la extracción de archivos de texto e imágenes sin alterar el contenido del volumen.
+
+Las operaciones de incorporación y eliminación de archivos, así como la sincronización entre hilos, continúan pendientes.
