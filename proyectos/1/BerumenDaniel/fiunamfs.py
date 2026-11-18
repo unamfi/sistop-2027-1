@@ -1,4 +1,6 @@
 import struct
+import os
+from datetime import datetime
 
 NOMBRE_FS = "FiUnamFS"
 VERSION_FS = "27-1"
@@ -156,21 +158,167 @@ def copiar_a_equipo(ruta_imagen, superbloque, nombre, ruta_destino):
     return True
 
 
+def buscar_entrada_libre(ruta_imagen, superbloque):
+    archivo = open(ruta_imagen, 'rb')
+
+    tamano_cluster = superbloque['tamano_cluster']
+    numero_entradas = (superbloque['clusters_directorio'] * tamano_cluster) // TAMANO_ENTRADA
+
+    for i in range(numero_entradas):
+        posicion = tamano_cluster + i * TAMANO_ENTRADA
+        tipo = leer_texto(archivo, posicion, 1)
+        nombre = leer_texto(archivo, posicion + 1, 15)
+        if tipo == '-' or nombre.startswith('#'):
+            archivo.close()
+            return i
+
+    archivo.close()
+    return -1
+
+
+def buscar_hueco(ruta_imagen, superbloque, clusters_necesarios):
+    tamano_cluster = superbloque['tamano_cluster']
+    primer_cluster_datos = 1 + superbloque['clusters_directorio']
+    total_clusters = superbloque['clusters_totales']
+
+    ocupados = []
+    for entrada in leer_directorio(ruta_imagen, superbloque):
+        inicio = entrada['cluster_inicial']
+        clusters = (entrada['tamano'] + tamano_cluster - 1) // tamano_cluster
+        if clusters == 0:
+            clusters = 1
+        ocupados.append([inicio, inicio + clusters])
+
+    ocupados.sort()
+
+    # Asignación contigua: se revisan los espacios entre archivos y se usa
+    # el primero donde quepa el archivo completo (first fit)
+    actual = primer_cluster_datos
+    for rango in ocupados:
+        inicio = rango[0]
+        fin = rango[1]
+        if inicio - actual >= clusters_necesarios:
+            return actual
+        if fin > actual:
+            actual = fin
+
+    if total_clusters - actual >= clusters_necesarios:
+        return actual
+
+    return -1
+
+
+def validar_nombre(nombre):
+    if nombre == "":
+        print("Error: el nombre está vacío")
+        return False
+
+    if len(nombre) > 15:
+        print("Error: el nombre tiene más de 15 caracteres")
+        return False
+
+    for letra in nombre:
+        if ord(letra) < 32 or ord(letra) > 126:
+            print("Error: el nombre solo puede tener caracteres ASCII sin acentos")
+            return False
+
+    if nombre.startswith('#'):
+        print("Error: el nombre no puede empezar con '#'")
+        return False
+
+    return True
+
+
+def escribir_archivo(ruta_imagen, superbloque, nombre, contenido):
+    if not validar_nombre(nombre):
+        return False
+
+    if buscar_archivo(ruta_imagen, superbloque, nombre) != None:
+        print("Error: ya existe un archivo llamado", nombre)
+        return False
+
+    numero_entrada = buscar_entrada_libre(ruta_imagen, superbloque)
+    if numero_entrada == -1:
+        print("Error: el directorio está lleno")
+        return False
+
+    tamano_cluster = superbloque['tamano_cluster']
+    clusters_necesarios = (len(contenido) + tamano_cluster - 1) // tamano_cluster
+    if clusters_necesarios == 0:
+        clusters_necesarios = 1
+
+    cluster_inicial = buscar_hueco(ruta_imagen, superbloque, clusters_necesarios)
+    if cluster_inicial == -1:
+        print("Error: no hay espacio contiguo suficiente para", nombre)
+        return False
+
+    fecha = datetime.now().strftime("%Y%m%d%H%M%S")
+
+    archivo = open(ruta_imagen, 'r+b')
+
+    # Primero los datos y después la entrada: si algo falla a la mitad,
+    # el directorio no queda apuntando a datos incompletos
+    archivo.seek(cluster_inicial * tamano_cluster)
+    archivo.write(contenido)
+
+    posicion_entrada = tamano_cluster + numero_entrada * TAMANO_ENTRADA
+    archivo.seek(posicion_entrada)
+    archivo.write(b'F')
+    archivo.write(nombre.ljust(15).encode('ascii'))
+    archivo.write(struct.pack('<I', len(contenido)))
+    archivo.write(struct.pack('<I', cluster_inicial))
+    archivo.write(fecha.encode('ascii'))
+    archivo.write(fecha.encode('ascii'))
+
+    archivo.close()
+    return True
+
+
+def copiar_a_fiunamfs(ruta_imagen, superbloque, ruta_origen):
+    if not os.path.isfile(ruta_origen):
+        print("Error: no existe el archivo", ruta_origen)
+        return False
+
+    nombre = os.path.basename(ruta_origen)
+
+    origen = open(ruta_origen, 'rb')
+    contenido = origen.read()
+    origen.close()
+
+    if escribir_archivo(ruta_imagen, superbloque, nombre, contenido):
+        print("Se copió", ruta_origen, "a FiUnamFS como", nombre, "(", len(contenido), "bytes )")
+        return True
+    return False
+
+
 if __name__ == "__main__":
     ruta = input("Ruta de la imagen: ")
     sb = leer_superbloque(ruta)
     mostrar_superbloque(sb)
 
-    if validar_superbloque(sb):
-        print("La imagen es válida")
-        print()
-        archivos = leer_directorio(ruta, sb)
-        mostrar_directorio(archivos)
-        print()
-
-        nombre = input("Archivo a copiar a tu equipo (Enter para salir): ")
-        if nombre != "":
-            destino = input("Guardar como: ")
-            copiar_a_equipo(ruta, sb, nombre, destino)
-    else:
+    if not validar_superbloque(sb):
         print("La imagen NO es válida")
+    else:
+        print("La imagen es válida")
+
+        opcion = ""
+        while opcion != "0":
+            print()
+            print("1. Listar")
+            print("2. Copiar de FiUnamFS a tu equipo")
+            print("3. Copiar de tu equipo a FiUnamFS")
+            print("0. Salir")
+            opcion = input("Opción: ")
+
+            if opcion == "1":
+                archivos = leer_directorio(ruta, sb)
+                mostrar_directorio(archivos)
+            elif opcion == "2":
+                nombre = input("Archivo de FiUnamFS: ")
+                destino = input("Guardar como: ")
+                copiar_a_equipo(ruta, sb, nombre, destino)
+            elif opcion == "3":
+                origen = input("Archivo de tu equipo: ")
+                copiar_a_fiunamfs(ruta, sb, origen)
+            elif opcion != "0":
+                print("Opción no válida")
