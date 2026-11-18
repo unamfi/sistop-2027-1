@@ -128,7 +128,14 @@ def copia_a_equipo(disco, nombre, destino):
         raise ValueError(f'Ya existe {destino} en tu equipo')
     disco.seek(entrada['cluster'] * tam_cluster)
     with open(destino, 'wb') as archivo:
-        copia_por_partes(disco, archivo, entrada['tam'])
+        try:
+            copia_por_partes(disco, archivo, entrada['tam'])
+        except OSError:
+            # Si la copia falla no dejamos un archivo incompleto en el equipo;
+            # en Windows hay que cerrarlo antes de poder borrarlo
+            archivo.close()
+            os.remove(destino)
+            raise
     return f'Se copió {nombre} a {destino} ({entrada["tam"]} bytes)'
 
 def copia_a_fiunamfs(disco, origen):
