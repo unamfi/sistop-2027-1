@@ -80,6 +80,20 @@ public:
 
     /// Muestra los archivos encontrados dentro del directorio.
     void listFiles() const;
+
+    
+        /**
+     * Exporta un archivo desde FiUnamFS
+     * hacia una ruta del sistema anfitrion.
+     *
+     * @param filename Nombre del archivo en FiUnamFS.
+     * @param destination Ruta completa del archivo de destino.
+     * @return true si la exportacion fue exitosa.
+     */
+    bool exportFile(
+        const std::string& filename,
+        const std::string& destination
+    );
     };
 
-#endif
+#endif 

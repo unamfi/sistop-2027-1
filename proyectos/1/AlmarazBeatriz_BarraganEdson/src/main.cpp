@@ -15,7 +15,7 @@
 #include "../include/FiUnamFS.h"
 
 #include <iostream>
-
+#include <string>
 int main() {
     // Instancia principal del sistema de archivos
     FiUnamFS fs;
@@ -64,6 +64,29 @@ int main() {
 
     // Mostrar los archivos detectados (salida para depuración).
     //fs.debugDirectory();
+
+   
+    // Permitir al usuario elegir el archivo que desea exportar.
+    std::cout << "\n=== EXPORTAR ARCHIVO ===\n";
+
+    std::string filename;
+
+    std::cout << "Escribe el nombre del archivo a exportar: ";
+    std::getline(std::cin, filename);
+
+    if (!filename.empty()) {
+        // Guardar el archivo en la carpeta de salida.
+        std::string destination = "salida/" + filename;
+
+        if (fs.exportFile(filename, destination)) {
+            std::cout << "Exportacion completada.\n";
+        } else {
+            std::cerr << "No fue posible exportar el archivo.\n";
+        }
+    } else {
+        std::cout << "No se ingreso ningun archivo.\n";
+    }
+
 
     return 0;
 }
