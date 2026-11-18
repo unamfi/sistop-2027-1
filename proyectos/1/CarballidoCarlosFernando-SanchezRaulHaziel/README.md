@@ -175,3 +175,58 @@ python3 eliminar_archivo.py /ruta/fiunamfs_trabajo.img haziel.txt
 ```
 
 **Nota:** las operaciones de escritura deben probarse sobre una copia de la imagen. La sincronización entre hilos queda pendiente para el siguiente avance.
+
+## Quinto avance: interfaz multihilos y sincronización
+
+**Fecha:** 18 de noviembre de 2026.  
+**Responsable del avance:** Raúl Haziel Sánchez Soperanes.
+
+En esta etapa integramos las operaciones principales de FiUnamFS en una interfaz de texto mediante el programa `fiunamfs.py`.
+
+### Funcionamiento
+
+El programa utiliza dos hilos trabajadores creados con la biblioteca `threading` de Python.
+
+El hilo principal recibe las instrucciones del usuario y las coloca en una cola compartida (`Queue`). Los hilos trabajadores obtienen las tareas y ejecutan las operaciones correspondientes.
+
+Para evitar que ambos hilos accedan simultáneamente a la imagen FiUnamFS, utilizamos un candado `RLock`.
+
+También utilizamos `Event` para esperar la finalización de las tareas y `Barrier` para coordinar el inicio de ambos trabajadores durante la prueba de concurrencia.
+
+### Menú de operaciones
+
+El programa permite:
+
+1. Listar los archivos del directorio.
+2. Extraer archivos hacia el sistema anfitrión.
+3. Incorporar archivos a FiUnamFS.
+4. Eliminar archivos del directorio.
+5. Ejecutar una prueba de concurrencia.
+0. Salir del programa.
+
+### Ejecución
+
+Desde la carpeta del equipo, se recomienda utilizar una copia de la imagen original:
+
+```bash
+cp ../fiunamfs.img fiunamfs_trabajo.img
+python3 fiunamfs.py fiunamfs_trabajo.img
+```
+
+### Pruebas realizadas
+
+Ejecutamos el menú interactivo y comprobamos el listado de archivos.
+
+Después, utilizamos la opción de concurrencia, que ejecuta tareas de lectura y escritura mediante dos hilos sobre una copia temporal de la imagen.
+
+Durante la prueba:
+
+- Se incorporó `HILOS.TXT`, de 5100 bytes.
+- El archivo utilizó tres clústeres, comenzando en el clúster 24.
+- Ambos hilos participaron en la ejecución de operaciones.
+- El archivo pudo extraerse correctamente.
+- El contenido recuperado resultó idéntico al original.
+- La imagen de trabajo no fue modificada por la prueba de concurrencia.
+- Ambos hilos finalizaron correctamente al cerrar el programa.
+
+Las operaciones sobre la imagen se ejecutaron bajo protección del candado, evitando accesos simultáneos durante su ejecución.
