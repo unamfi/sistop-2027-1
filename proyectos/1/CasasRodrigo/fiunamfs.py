@@ -56,20 +56,57 @@ def read_directory(image, cluster_size, directory_clusters):
     return files
 
 
-if len(sys.argv) != 2:
-    sys.exit("Uso: python3 fiunamfs.py ruta_de_la_imagen.img")
+def list_files(files):
+    if not files:
+        print("\nEl directorio está vacío.")
+        return
+
+    print("\nArchivos en la imagen")
+    print(f"{'Nombre':15} {'Bytes':>10} {'Clúster inicial':>15}")
+    for name, size, start_cluster in files:
+        print(f"{name:15} {size:10} {start_cluster:15}")
+
+
+def extract_file(image, files, cluster_size, directory_clusters, name, destination):
+    for file_name, size, start_cluster in files:
+        if file_name != name:
+            continue
+
+        data = b""
+        if size > 0:
+            if start_cluster <= directory_clusters:
+                raise ValueError("El archivo empieza fuera del área de datos.")
+
+            # El clúster inicial indica dónde empieza el archivo en bytes.
+            image.seek(start_cluster * cluster_size)
+            data = image.read(size)
+            if len(data) != size:
+                raise ValueError("El archivo se extiende fuera de la imagen.")
+
+        # El modo xb crea el archivo y evita sobrescribir uno existente.
+        with open(destination, "xb") as output:
+            output.write(data)
+
+        print(f"Se extrajo {name} a {destination} ({size} bytes).")
+        return
+
+    raise ValueError(f"No se encontró {name} en la imagen.")
+
+
+if len(sys.argv) not in (2, 4):
+    sys.exit("Uso: python3 fiunamfs.py imagen.img [archivo destino]")
 
 try:
     with open(sys.argv[1], "rb") as image:
         cluster_size, directory_clusters = read_superblock(image)
         files = read_directory(image, cluster_size, directory_clusters)
 
-        if files:
-            print("\nArchivos en la imagen")
-            print(f"{'Nombre':15} {'Bytes':>10} {'Clúster inicial':>15}")
-            for name, size, start_cluster in files:
-                print(f"{name:15} {size:10} {start_cluster:15}")
+        if len(sys.argv) == 2:
+            list_files(files)
         else:
-            print("\nEl directorio está vacío.")
+            extract_file(
+                image, files, cluster_size, directory_clusters,
+                sys.argv[2], sys.argv[3]
+            )
 except (OSError, ValueError) as error:
     sys.exit(f"Error: {error}")
