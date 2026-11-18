@@ -1,4 +1,6 @@
+import os
 import sys
+from datetime import datetime
 
 
 def read_superblock(image):
@@ -33,17 +35,21 @@ def read_superblock(image):
     print("Clústeres del directorio:", directory_clusters)
     print("Clústeres totales:", total_clusters)
 
-    return cluster_size, directory_clusters
+    return cluster_size, directory_clusters, total_clusters
 
 
 def read_directory(image, cluster_size, directory_clusters):
-    # El directorio empieza en el clúster 1.
     image.seek(cluster_size)
     entry_count = cluster_size * directory_clusters // 64
     files = []
+    free_entry = None
 
     for _ in range(entry_count):
+        entry_position = image.tell()
         entry = image.read(64)
+
+        if entry[0:1] == b"-" and free_entry is None:
+            free_entry = entry_position
 
         if entry[0:1] != b"F":
             continue
@@ -53,7 +59,7 @@ def read_directory(image, cluster_size, directory_clusters):
         start_cluster = int.from_bytes(entry[20:24], "little")
         files.append((name, size, start_cluster))
 
-    return files
+    return files, free_entry
 
 
 def list_files(files):
@@ -77,13 +83,11 @@ def extract_file(image, files, cluster_size, directory_clusters, name, destinati
             if start_cluster <= directory_clusters:
                 raise ValueError("El archivo empieza fuera del área de datos.")
 
-            # El clúster inicial indica dónde empieza el archivo en bytes.
             image.seek(start_cluster * cluster_size)
             data = image.read(size)
             if len(data) != size:
                 raise ValueError("El archivo se extiende fuera de la imagen.")
 
-        # El modo xb crea el archivo y evita sobrescribir uno existente.
         with open(destination, "xb") as output:
             output.write(data)
 
@@ -93,15 +97,106 @@ def extract_file(image, files, cluster_size, directory_clusters, name, destinati
     raise ValueError(f"No se encontró {name} en la imagen.")
 
 
+def find_free_clusters(files, cluster_size, first_data_cluster, total_clusters, needed):
+    occupied = [False] * total_clusters
+
+    for name, size, start in files:
+        if size == 0:
+            continue
+
+        # El último clúster cuenta aunque el archivo solo use una parte.
+        count = (size + cluster_size - 1) // cluster_size
+        end = start + count
+        if start < first_data_cluster or end > total_clusters:
+            raise ValueError(f"El archivo {name} está fuera del área de datos.")
+
+        for cluster in range(start, end):
+            occupied[cluster] = True
+
+    consecutive = 0
+    for cluster in range(first_data_cluster, total_clusters):
+        if occupied[cluster]:
+            consecutive = 0
+        else:
+            consecutive += 1
+            if consecutive == needed:
+                return cluster - needed + 1
+
+    raise ValueError("No hay suficientes clústeres libres consecutivos.")
+
+
+def import_file(image, files, free_entry, cluster_size, directory_clusters,
+                total_clusters, source):
+    name = os.path.basename(source)
+    if not name.isascii() or not 1 <= len(name) <= 15 or name.endswith(" "):
+        raise ValueError("El nombre debe tener de 1 a 15 caracteres ASCII y no acabar en espacio.")
+    if name == "#..............":
+        raise ValueError("Ese nombre está reservado para las entradas libres.")
+
+    for file_name, _, _ in files:
+        if file_name == name:
+            raise ValueError(f"Ya existe {name} en la imagen.")
+
+    if free_entry is None:
+        raise ValueError("El directorio está lleno.")
+
+    first_data_cluster = 1 + directory_clusters
+    capacity = (total_clusters - first_data_cluster) * cluster_size
+    with open(source, "rb") as input_file:
+        data = input_file.read(capacity + 1)
+
+    size = len(data)
+    if size > capacity:
+        raise ValueError("El archivo es demasiado grande para la imagen.")
+
+    start_cluster = 0
+    if size > 0:
+        needed = (size + cluster_size - 1) // cluster_size
+        start_cluster = find_free_clusters(
+            files, cluster_size, first_data_cluster, total_clusters, needed
+        )
+        image.seek(start_cluster * cluster_size)
+        image.write(data)
+
+    # Para esta entrada, ambas fechas indican el momento de la importación.
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S").encode("ascii")
+    entry = (
+        b"F"
+        + name.encode("ascii").ljust(15, b" ")
+        + size.to_bytes(4, "little")
+        + start_cluster.to_bytes(4, "little")
+        + timestamp
+        + timestamp
+        + bytes(12)
+    )
+
+    image.seek(free_entry)
+    image.write(entry)
+    print(f"Se importó {name} ({size} bytes).")
+
+
 if len(sys.argv) not in (2, 4):
-    sys.exit("Uso: python3 fiunamfs.py imagen.img [archivo destino]")
+    sys.exit(
+        "Uso:\n"
+        "  python3 fiunamfs.py imagen.img\n"
+        "  python3 fiunamfs.py imagen.img archivo destino\n"
+        "  python3 fiunamfs.py imagen.img --importar archivo_local"
+    )
+
+importing = len(sys.argv) == 4 and sys.argv[2] == "--importar"
+mode = "r+b" if importing else "rb"
 
 try:
-    with open(sys.argv[1], "rb") as image:
-        cluster_size, directory_clusters = read_superblock(image)
-        files = read_directory(image, cluster_size, directory_clusters)
+    with open(sys.argv[1], mode) as image:
+        cluster_size, directory_clusters, total_clusters = read_superblock(image)
+        files, free_entry = read_directory(image, cluster_size, directory_clusters)
 
-        if len(sys.argv) == 2:
+        if importing:
+            import_file(
+                image, files, free_entry, cluster_size, directory_clusters,
+                total_clusters, sys.argv[3]
+            )
+        elif len(sys.argv) == 2:
             list_files(files)
         else:
             extract_file(
