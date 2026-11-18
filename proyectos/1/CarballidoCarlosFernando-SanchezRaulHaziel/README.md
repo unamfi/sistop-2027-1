@@ -118,3 +118,60 @@ Posteriormente comparamos los bytes extraídos con los almacenados en la imagen 
 Con esto comprobamos la extracción de archivos de texto e imágenes sin alterar el contenido del volumen.
 
 Las operaciones de incorporación y eliminación de archivos, así como la sincronización entre hilos, continúan pendientes.
+
+## Cuarto avance: incorporación y eliminación de archivos
+
+**Fecha:** 17 de noviembre de 2026  
+**Responsable de este avance:** Raúl Haziel Sánchez Soperanes.
+
+En esta etapa implementamos las operaciones de incorporación y eliminación de archivos dentro de FiUnamFS.
+
+### Eliminación de archivos
+
+El programa `eliminar_archivo.py` busca el archivo solicitado en el directorio y marca su entrada como disponible.
+
+Esta operación no borra físicamente el contenido almacenado en los clústeres, pero permite que posteriormente se reutilice ese espacio.
+
+### Incorporación de archivos
+
+El programa `agregar_archivo.py` permite copiar archivos desde el sistema operativo anfitrión hacia la imagen FiUnamFS.
+
+Para realizarlo:
+
+1. Comprueba que el nombre no exista previamente.
+2. Busca una entrada libre en el directorio.
+3. Identifica los clústeres ocupados.
+4. Encuentra espacio libre contiguo.
+5. Escribe el contenido y registra los datos del archivo en el directorio.
+
+### Pruebas realizadas
+
+Trabajamos sobre una copia de la imagen proporcionada por el profesor para evitar modificar el archivo original.
+
+Primero eliminamos `logo.png` y comprobamos que el directorio pasara de tres archivos a dos.
+
+Después incorporamos `haziel.txt`, un archivo de 3700 bytes. El programa utilizó dos clústeres consecutivos comenzando en el clúster 22, anteriormente ocupado por `logo.png`.
+
+También realizamos las siguientes comprobaciones:
+
+- Los archivos `README.org` y `mensaje.jpg` conservaron su contenido original.
+- La eliminación de un archivo inexistente produjo un mensaje de error.
+- El archivo incorporado pudo extraerse correctamente.
+- El contenido extraído de `haziel.txt` resultó idéntico al archivo original mediante `cmp`.
+- El programa rechazó el intento de incorporar un archivo con nombre duplicado.
+
+### Ejecución
+
+Para agregar un archivo:
+
+```bash
+python3 agregar_archivo.py /ruta/fiunamfs_trabajo.img /ruta/haziel.txt
+```
+
+Para eliminar un archivo:
+
+```bash
+python3 eliminar_archivo.py /ruta/fiunamfs_trabajo.img haziel.txt
+```
+
+**Nota:** las operaciones de escritura deben probarse sobre una copia de la imagen. La sincronización entre hilos queda pendiente para el siguiente avance.
