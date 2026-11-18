@@ -57,7 +57,7 @@ def read_directory(image, cluster_size, directory_clusters):
         name = entry[1:16].decode("ascii").rstrip("\x00 ")
         size = int.from_bytes(entry[16:20], "little")
         start_cluster = int.from_bytes(entry[20:24], "little")
-        files.append((name, size, start_cluster))
+        files.append((name, size, start_cluster, entry_position))
 
     return files, free_entry
 
@@ -69,12 +69,12 @@ def list_files(files):
 
     print("\nArchivos en la imagen")
     print(f"{'Nombre':15} {'Bytes':>10} {'Clúster inicial':>15}")
-    for name, size, start_cluster in files:
+    for name, size, start_cluster, _ in files:
         print(f"{name:15} {size:10} {start_cluster:15}")
 
 
 def extract_file(image, files, cluster_size, directory_clusters, name, destination):
-    for file_name, size, start_cluster in files:
+    for file_name, size, start_cluster, _ in files:
         if file_name != name:
             continue
 
@@ -100,7 +100,7 @@ def extract_file(image, files, cluster_size, directory_clusters, name, destinati
 def find_free_clusters(files, cluster_size, first_data_cluster, total_clusters, needed):
     occupied = [False] * total_clusters
 
-    for name, size, start in files:
+    for name, size, start, _ in files:
         if size == 0:
             continue
 
@@ -133,7 +133,7 @@ def import_file(image, files, free_entry, cluster_size, directory_clusters,
     if name == "#..............":
         raise ValueError("Ese nombre está reservado para las entradas libres.")
 
-    for file_name, _, _ in files:
+    for file_name, _, _, _ in files:
         if file_name == name:
             raise ValueError(f"Ya existe {name} en la imagen.")
 
@@ -158,7 +158,7 @@ def import_file(image, files, free_entry, cluster_size, directory_clusters,
         image.seek(start_cluster * cluster_size)
         image.write(data)
 
-    # Para esta entrada, ambas fechas indican el momento de la importación.
+    # Ambas fechas indican el momento de la importación.
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S").encode("ascii")
     entry = (
         b"F"
@@ -175,27 +175,42 @@ def import_file(image, files, free_entry, cluster_size, directory_clusters,
     print(f"Se importó {name} ({size} bytes).")
 
 
+def delete_file(image, files, name):
+    for file_name, _, _, entry_position in files:
+        if file_name == name:
+            # Al liberar la entrada, sus clústeres quedan disponibles.
+            image.seek(entry_position)
+            image.write(b"-#.............." + bytes(48))
+            print(f"Se eliminó {name} de la imagen.")
+            return
+
+    raise ValueError(f"No se encontró {name} en la imagen.")
+
+
 if len(sys.argv) not in (2, 4):
     sys.exit(
         "Uso:\n"
         "  python3 fiunamfs.py imagen.img\n"
         "  python3 fiunamfs.py imagen.img archivo destino\n"
-        "  python3 fiunamfs.py imagen.img --importar archivo_local"
+        "  python3 fiunamfs.py imagen.img --importar archivo_local\n"
+        "  python3 fiunamfs.py imagen.img --borrar archivo"
     )
 
-importing = len(sys.argv) == 4 and sys.argv[2] == "--importar"
-mode = "r+b" if importing else "rb"
+operation = sys.argv[2] if len(sys.argv) == 4 else ""
+mode = "r+b" if operation in ("--importar", "--borrar") else "rb"
 
 try:
     with open(sys.argv[1], mode) as image:
         cluster_size, directory_clusters, total_clusters = read_superblock(image)
         files, free_entry = read_directory(image, cluster_size, directory_clusters)
 
-        if importing:
+        if operation == "--importar":
             import_file(
                 image, files, free_entry, cluster_size, directory_clusters,
                 total_clusters, sys.argv[3]
             )
+        elif operation == "--borrar":
+            delete_file(image, files, sys.argv[3])
         elif len(sys.argv) == 2:
             list_files(files)
         else:
