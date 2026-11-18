@@ -76,6 +76,41 @@ def escribe_entrada(disco, num, datos):
     disco.seek(tam_cluster + num * 64)
     disco.write(datos)
 
+def copia_por_partes(origen, destino, tam):
+    # Un hilo lee de a un cluster y este lo escribe, pasándose los pedazos por
+    # una cinta acotada como en productores y consumidores
+    cinta = []
+    mutex_cinta = threading.Semaphore(1)
+    pedazos = threading.Semaphore(0)
+    lugares = threading.Semaphore(4)
+    def pon(pedazo):
+        lugares.acquire()
+        with mutex_cinta:
+            cinta.append(pedazo)
+        pedazos.release()
+    def lector():
+        try:
+            for inicio in range(0, tam, tam_cluster):
+                pon(origen.read(min(tam_cluster, tam - inicio)))
+        except OSError:
+            pass
+        finally:
+            # None avisa que ya no hay más, aunque la lectura haya fallado
+            pon(None)
+    threading.Thread(target=lector, daemon=True).start()
+    escritos = 0
+    while True:
+        pedazos.acquire()
+        with mutex_cinta:
+            pedazo = cinta.pop(0)
+        lugares.release()
+        if pedazo is None:
+            break
+        destino.write(pedazo)
+        escritos += len(pedazo)
+    if escritos != tam:
+        raise OSError(f'sólo se pudieron copiar {escritos} de {tam} bytes')
+
 def listar(disco):
     entradas = lee_directorio(disco)
     lineas = [f'{"Nombre":15} {"Tamaño":>8} {"Cluster":>7}  {"Creación":16}  Modificación']
@@ -92,17 +127,15 @@ def copia_a_equipo(disco, nombre, destino):
     if os.path.exists(destino):
         raise ValueError(f'Ya existe {destino} en tu equipo')
     disco.seek(entrada['cluster'] * tam_cluster)
-    datos = disco.read(entrada['tam'])
     with open(destino, 'wb') as archivo:
-        archivo.write(datos)
-    return f'Se copió {nombre} a {destino} ({len(datos)} bytes)'
+        copia_por_partes(disco, archivo, entrada['tam'])
+    return f'Se copió {nombre} a {destino} ({entrada["tam"]} bytes)'
 
 def copia_a_fiunamfs(disco, origen):
     nombre = os.path.basename(origen)
     if not nombre.isascii() or not nombre.isprintable() or len(nombre) > 14:
         raise ValueError('El nombre debe ser ASCII y medir máximo 14 caracteres')
-    with open(origen, 'rb') as archivo:
-        datos = archivo.read()
+    tam = os.path.getsize(origen)
     entradas = lee_directorio(disco)
     if any(e['nombre'] == nombre for e in entradas):
         raise ValueError(f'Ya existe {nombre} en FiUnamFS')
@@ -110,13 +143,15 @@ def copia_a_fiunamfs(disco, origen):
     libres = [num for num in range(clusters_dir * tam_cluster // 64) if num not in ocupadas]
     if not libres:
         raise ValueError('El directorio está lleno')
-    cluster = busca_espacio(entradas, len(datos))
+    cluster = busca_espacio(entradas, tam)
     disco.seek(cluster * tam_cluster)
-    disco.write(datos)
+    with open(origen, 'rb') as archivo:
+        copia_por_partes(archivo, disco, tam)
+    # La entrada se escribe al final, así una copia que falla no deja nada a medias en el directorio
     creado = time.strftime('%Y%m%d%H%M%S')
     modificado = time.strftime('%Y%m%d%H%M%S', time.localtime(os.path.getmtime(origen)))
     entrada = b'F' + nombre.ljust(14).encode('ascii') + b'\x00'
-    entrada += struct.pack('<II', len(datos), cluster)
+    entrada += struct.pack('<II', tam, cluster)
     entrada += creado.encode('ascii') + modificado.encode('ascii') + bytes(12)
     escribe_entrada(disco, libres[0], entrada)
     return f'Se copió {nombre} a FiUnamFS en el cluster {cluster}'
