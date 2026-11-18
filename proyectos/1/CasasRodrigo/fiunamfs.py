@@ -1,6 +1,8 @@
 import os
 import sys
 from datetime import datetime
+from queue import Empty, Queue
+from threading import Thread
 
 
 def read_superblock(image):
@@ -8,10 +10,8 @@ def read_superblock(image):
 
     if len(header) < 52:
         raise ValueError("El superbloque está incompleto.")
-
     if header[0:8] != b"FiUnamFS":
         raise ValueError("La imagen no es FiUnamFS.")
-
     if header[10:14] != b"27-1":
         raise ValueError("La versión de la imagen debe ser 27-1.")
 
@@ -29,13 +29,7 @@ def read_superblock(image):
     if image_size != cluster_size * total_clusters:
         raise ValueError("El tamaño de la imagen no coincide con el superbloque.")
 
-    print("FiUnamFS 27-1")
-    print("Etiqueta del volumen:", label)
-    print("Tamaño del clúster:", cluster_size, "bytes")
-    print("Clústeres del directorio:", directory_clusters)
-    print("Clústeres totales:", total_clusters)
-
-    return cluster_size, directory_clusters, total_clusters
+    return label, cluster_size, directory_clusters, total_clusters
 
 
 def read_directory(image, cluster_size, directory_clusters):
@@ -64,13 +58,16 @@ def read_directory(image, cluster_size, directory_clusters):
 
 def list_files(files):
     if not files:
-        print("\nEl directorio está vacío.")
-        return
+        return "El directorio está vacío."
 
-    print("\nArchivos en la imagen")
-    print(f"{'Nombre':15} {'Bytes':>10} {'Clúster inicial':>15}")
+    lines = [
+        "Archivos en la imagen",
+        f"{'Nombre':15} {'Bytes':>10} {'Clúster inicial':>15}",
+    ]
     for name, size, start_cluster, _ in files:
-        print(f"{name:15} {size:10} {start_cluster:15}")
+        lines.append(f"{name:15} {size:10} {start_cluster:15}")
+
+    return "\n".join(lines)
 
 
 def extract_file(image, files, cluster_size, directory_clusters, name, destination):
@@ -91,8 +88,7 @@ def extract_file(image, files, cluster_size, directory_clusters, name, destinati
         with open(destination, "xb") as output:
             output.write(data)
 
-        print(f"Se extrajo {name} a {destination} ({size} bytes).")
-        return
+        return f"Se extrajo {name} a {destination} ({size} bytes)."
 
     raise ValueError(f"No se encontró {name} en la imagen.")
 
@@ -104,7 +100,7 @@ def find_free_clusters(files, cluster_size, first_data_cluster, total_clusters, 
         if size == 0:
             continue
 
-        # El último clúster cuenta aunque el archivo solo use una parte.
+        # El último clúster cuenta aunque el archivo use solo una parte.
         count = (size + cluster_size - 1) // cluster_size
         end = start + count
         if start < first_data_cluster or end > total_clusters:
@@ -125,11 +121,14 @@ def find_free_clusters(files, cluster_size, first_data_cluster, total_clusters, 
     raise ValueError("No hay suficientes clústeres libres consecutivos.")
 
 
-def import_file(image, files, free_entry, cluster_size, directory_clusters,
-                total_clusters, source):
+def import_file(
+    image, files, free_entry, cluster_size, directory_clusters, total_clusters, source
+):
     name = os.path.basename(source)
     if not name.isascii() or not 1 <= len(name) <= 15 or name.endswith(" "):
-        raise ValueError("El nombre debe tener de 1 a 15 caracteres ASCII y no acabar en espacio.")
+        raise ValueError(
+            "El nombre debe tener de 1 a 15 caracteres ASCII y no acabar en espacio."
+        )
     if name == "#..............":
         raise ValueError("Ese nombre está reservado para las entradas libres.")
 
@@ -158,7 +157,7 @@ def import_file(image, files, free_entry, cluster_size, directory_clusters,
         image.seek(start_cluster * cluster_size)
         image.write(data)
 
-    # Ambas fechas indican el momento de la importación.
+
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S").encode("ascii")
     entry = (
         b"F"
@@ -172,7 +171,7 @@ def import_file(image, files, free_entry, cluster_size, directory_clusters,
 
     image.seek(free_entry)
     image.write(entry)
-    print(f"Se importó {name} ({size} bytes).")
+    return f"Se importó {name} ({size} bytes)."
 
 
 def delete_file(image, files, name):
@@ -181,42 +180,145 @@ def delete_file(image, files, name):
             # Al liberar la entrada, sus clústeres quedan disponibles.
             image.seek(entry_position)
             image.write(b"-#.............." + bytes(48))
-            print(f"Se eliminó {name} de la imagen.")
-            return
+            return f"Se eliminó {name} de la imagen."
 
     raise ValueError(f"No se encontró {name} en la imagen.")
 
 
-if len(sys.argv) not in (2, 4):
-    sys.exit(
-        "Uso:\n"
-        "  python3 fiunamfs.py imagen.img\n"
-        "  python3 fiunamfs.py imagen.img archivo destino\n"
-        "  python3 fiunamfs.py imagen.img --importar archivo_local\n"
-        "  python3 fiunamfs.py imagen.img --borrar archivo"
-    )
+def run_operation(image_path, operation, *args):
+    mode = "r+b" if operation in ("importar", "borrar") else "rb"
 
-operation = sys.argv[2] if len(sys.argv) == 4 else ""
-mode = "r+b" if operation in ("--importar", "--borrar") else "rb"
-
-try:
-    with open(sys.argv[1], mode) as image:
-        cluster_size, directory_clusters, total_clusters = read_superblock(image)
+    with open(image_path, mode) as image:
+        _, cluster_size, directory_clusters, total_clusters = read_superblock(image)
         files, free_entry = read_directory(image, cluster_size, directory_clusters)
 
-        if operation == "--importar":
-            import_file(
+        if operation == "listar":
+            return list_files(files)
+        if operation == "extraer":
+            return extract_file(image, files, cluster_size, directory_clusters, *args)
+        if operation == "importar":
+            return import_file(
                 image, files, free_entry, cluster_size, directory_clusters,
-                total_clusters, sys.argv[3]
+                total_clusters, *args
             )
-        elif operation == "--borrar":
-            delete_file(image, files, sys.argv[3])
-        elif len(sys.argv) == 2:
-            list_files(files)
+
+        return delete_file(image, files, *args)
+
+
+def disk_worker(image_path, requests, results):
+    while True:
+        request = requests.get()
+
+      
+        if request is None:
+            return
+
+        operation, args = request
+        try:
+            message = run_operation(image_path, operation, *args)
+        except (OSError, ValueError) as error:
+            message = f"Error: {error}"
+
+        results.put(message)
+
+
+def run_menu(image_path):
+    with open(image_path, "rb") as image:
+        label, _, _, _ = read_superblock(image)
+    print(f"FiUnamFS 27-1 | {label}")
+
+    requests = Queue()
+    results = Queue()
+    worker = Thread(target=disk_worker, args=(image_path, requests, results))
+    worker.start()
+    pending = 0
+
+    try:
+        while True:
+          
+            while pending > 0:
+                try:
+                    print("\n" + results.get_nowait())
+                    pending -= 1
+                except Empty:
+                    break
+
+            print(f"\nSolicitudes por mostrar: {pending}")
+            print("1. Listar archivos")
+            print("2. Extraer un archivo")
+            print("3. Importar un archivo")
+            print("4. Borrar un archivo")
+            print("5. Esperar y mostrar resultados")
+            print("0. Salir")
+
+            choice = input("Opción: ").strip()
+            if choice == "0":
+                break
+
+            if choice == "5":
+                while pending > 0:
+                    print("\n" + results.get())
+                    pending -= 1
+                continue
+
+            if choice == "1":
+                request = ("listar", ())
+            elif choice == "2":
+                name = input("Nombre del archivo en la imagen: ")
+                destination = input("Ruta donde se guardará: ")
+                request = ("extraer", (name, destination))
+            elif choice == "3":
+                source = input("Ruta del archivo local: ")
+                request = ("importar", (source,))
+            elif choice == "4":
+                name = input("Nombre del archivo que quieres borrar: ")
+                request = ("borrar", (name,))
+            else:
+                print("Opción inválida.")
+                continue
+
+            requests.put(request)
+            pending += 1
+
+    except (EOFError, KeyboardInterrupt):
+        print()
+
+    finally:
+        requests.put(None)
+        worker.join()
+
+    for _ in range(pending):
+        print("\n" + results.get())
+
+
+def main():
+    args = sys.argv[1:]
+
+    if len(args) == 1:
+        run_menu(args[0])
+    elif len(args) == 2 and args[1] == "--listar":
+        print(run_operation(args[0], "listar"))
+    elif len(args) == 3:
+        image_path, option, value = args
+        if option == "--importar":
+            print(run_operation(image_path, "importar", value))
+        elif option == "--borrar":
+            print(run_operation(image_path, "borrar", value))
         else:
-            extract_file(
-                image, files, cluster_size, directory_clusters,
-                sys.argv[2], sys.argv[3]
-            )
-except (OSError, ValueError) as error:
-    sys.exit(f"Error: {error}")
+            print(run_operation(image_path, "extraer", option, value))
+    else:
+        sys.exit(
+            "Uso:\n"
+            "  python3 fiunamfs.py imagen.img\n"
+            "  python3 fiunamfs.py imagen.img --listar\n"
+            "  python3 fiunamfs.py imagen.img archivo destino\n"
+            "  python3 fiunamfs.py imagen.img --importar archivo_local\n"
+            "  python3 fiunamfs.py imagen.img --borrar archivo"
+        )
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (OSError, ValueError) as error:
+        sys.exit(f"Error: {error}")
