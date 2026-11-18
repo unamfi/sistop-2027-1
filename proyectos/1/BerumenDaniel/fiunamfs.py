@@ -119,6 +119,43 @@ def mostrar_directorio(lista_archivos):
     print("Total de archivos:", len(lista_archivos))
 
 
+def buscar_archivo(ruta_imagen, superbloque, nombre):
+    lista_archivos = leer_directorio(ruta_imagen, superbloque)
+    for entrada in lista_archivos:
+        if entrada['nombre'] == nombre:
+            return entrada
+    return None
+
+
+def leer_archivo(ruta_imagen, superbloque, nombre):
+    entrada = buscar_archivo(ruta_imagen, superbloque, nombre)
+    if entrada == None:
+        print("Error: no existe el archivo", nombre)
+        return None
+
+    archivo = open(ruta_imagen, 'rb')
+    # Se leen solo 'tamano' bytes; el resto del último cluster es basura
+    posicion = entrada['cluster_inicial'] * superbloque['tamano_cluster']
+    archivo.seek(posicion)
+    contenido = archivo.read(entrada['tamano'])
+    archivo.close()
+
+    return contenido
+
+
+def copiar_a_equipo(ruta_imagen, superbloque, nombre, ruta_destino):
+    contenido = leer_archivo(ruta_imagen, superbloque, nombre)
+    if contenido == None:
+        return False
+
+    destino = open(ruta_destino, 'wb')
+    destino.write(contenido)
+    destino.close()
+
+    print("Se copió", nombre, "a", ruta_destino, "(", len(contenido), "bytes )")
+    return True
+
+
 if __name__ == "__main__":
     ruta = input("Ruta de la imagen: ")
     sb = leer_superbloque(ruta)
@@ -129,5 +166,11 @@ if __name__ == "__main__":
         print()
         archivos = leer_directorio(ruta, sb)
         mostrar_directorio(archivos)
+        print()
+
+        nombre = input("Archivo a copiar a tu equipo (Enter para salir): ")
+        if nombre != "":
+            destino = input("Guardar como: ")
+            copiar_a_equipo(ruta, sb, nombre, destino)
     else:
         print("La imagen NO es válida")
