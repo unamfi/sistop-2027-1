@@ -15,6 +15,13 @@ import struct
 from dataclasses import dataclass
 from datetime import datetime
 
+# fcntl es el módulo de Python para los candados sobre archivos en Unix. En
+# Windows no existe, ahí el programa funciona igual pero sin el candado
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
+
 NOMBRE_FS = b'FiUnamFS'
 VERSION_FS = b'27-1'
 
@@ -94,10 +101,32 @@ class FiUnamFS:
         except OSError as e:
             raise ErrorFiUnamFS(f'No se pudo abrir "{ruta}": {e.strerror}')
         try:
+            self._tomar_candado()
             self._leer_superbloque()
+            # Con el candado nadie más puede cambiar la imagen mientras está
+            # abierta, así que el directorio se lee una sola vez y después se
+            # trabaja con la copia en memoria
+            self.directorio = self._leer_directorio_del_disco()
         except Exception:
             self.imagen.close()
             raise
+
+    def _tomar_candado(self):
+        """
+        Evita que otro proceso use la imagen al mismo tiempo, por ejemplo si se
+        corre el programa dos veces. Si la imagen se puede escribir el candado
+        es exclusivo, si se abrió solo para lectura es compartido, así varios
+        programas pueden leerla a la vez pero ninguno puede escribirla mientras
+        otro la tiene abierta. Se suelta solo al cerrar el archivo.
+        """
+        if fcntl is None:
+            return
+        modo = fcntl.LOCK_SH if self.solo_lectura else fcntl.LOCK_EX
+        try:
+            # LOCK_NB hace que falle de inmediato en lugar de quedarse esperando
+            fcntl.flock(self.imagen, modo | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise ErrorFiUnamFS('La imagen ya está abierta en otro programa, ciérralo primero')
 
     @staticmethod
     def _abrir_solo_lectura(ruta):
@@ -140,11 +169,16 @@ class FiUnamFS:
     def _posicion_entrada(self, indice):
         return CLUSTER_DIRECTORIO * self.tam_cluster + indice * TAM_ENTRADA
 
-    def _leer_directorio(self):
-        """Regresa todas las entradas del directorio, ocupadas o no, en crudo."""
+    def _leer_directorio_del_disco(self):
+        """Lee todas las entradas del directorio, ocupadas o no, en crudo."""
         self.imagen.seek(self._posicion_entrada(0))
         crudo = self.imagen.read(self.total_entradas * TAM_ENTRADA)
         return [crudo[i:i + TAM_ENTRADA] for i in range(0, len(crudo), TAM_ENTRADA)]
+
+    def _leer_directorio(self):
+        # Con asignación contigua el directorio basta para saber dónde está
+        # cada archivo, por eso tenerlo en memoria evita volver al disco
+        return self.directorio
 
     @staticmethod
     def _leer_nombre(campo):
@@ -189,6 +223,7 @@ class FiUnamFS:
         self.imagen.seek(self._posicion_entrada(indice))
         self.imagen.write(datos)
         self.imagen.flush()
+        self.directorio[indice] = datos
 
     # ---- Espacio ----
 

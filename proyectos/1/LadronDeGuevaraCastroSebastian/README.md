@@ -6,7 +6,7 @@ Es un programa para trabajar con imágenes del sistema de archivos `FiUnamFS` ve
 
 ## Entorno y requisitos
 
-Lo escribí en Python 3 (CPython) y necesita la versión 3.8 o más reciente, yo lo probé con Python 3.13. Solo usa la biblioteca estándar (`struct`, `math`, `threading`, `queue`, `os`, `datetime`, `dataclasses`), así que no hay que instalar nada con `pip`. Debería funcionar en cualquier sistema donde corra Python, la interfaz es de texto y se usa desde la terminal.
+Lo escribí en Python 3 (CPython) y necesita la versión 3.8 o más reciente, yo lo probé con Python 3.13. Solo usa la biblioteca estándar (`struct`, `math`, `threading`, `queue`, `os`, `datetime`, `dataclasses`, `fcntl`), así que no hay que instalar nada con `pip`. En Windows no existe `fcntl`, ahí el programa funciona igual pero sin el candado sobre la imagen que explico más abajo. Debería funcionar en cualquier sistema donde corra Python, la interfaz es de texto y se usa desde la terminal.
 
 ## Cómo ejecutarlo
 
@@ -16,7 +16,7 @@ Desde esta carpeta se le pasa la ruta de la imagen
 python3 main.py ruta/a/fiunamfs.img
 ```
 
-Si no se le pasa ninguna busca `fiunamfs.img` en la carpeta actual. Antes de hacer cualquier cosa revisa que la imagen diga `FiUnamFS` y que sea la versión `27-1`, si no se niega a abrirla para no dañar un archivo que no es el correcto.
+Si no se le pasa ninguna busca `fiunamfs.img` en la carpeta actual. Antes de hacer cualquier cosa revisa que la imagen diga `FiUnamFS` y que sea la versión `27-1`, si no se niega a abrirla para no dañar un archivo que no es el correcto. Tampoco la abre si ya está abierta en otra terminal, en ese caso avisa para que se cierre la otra primero.
 
 Como el programa escribe sobre la imagen conviene trabajar con una copia y dejar la original intacta. Si la imagen no tiene permiso de escritura el programa la abre de todos modos, pero solo deja listar y copiar hacia la computadora.
 
@@ -106,6 +106,8 @@ Como la asignación es contigua un archivo necesita clusters seguidos, para copi
 
 FiUnamFS no tiene un mapa de bits para saber qué clusters están libres, como dice la especificación toda la información de los archivos está en el directorio. Por eso para encontrar espacio reviso el directorio completo y calculo qué rango de clusters ocupa cada archivo, lo que no ocupe ninguno está libre. En la presentación 15 viene que el mapa de bits es solo una de varias estrategias para el espacio libre (diapositiva 12) y que con asignación contigua basta con saber dónde empieza cada archivo y cuánto mide (diapositiva 33), que es justo lo que guarda el directorio.
 
+El directorio se lee una sola vez al abrir la imagen y después se trabaja con una copia en memoria, cada vez que se crea o elimina un archivo se actualiza la entrada en el disco y en la copia. En la presentación 15 (diapositiva 39) viene que con asignación contigua basta con tener el directorio en caché para conocer la ubicación de todos los archivos, así que no hace falta volver a leerlo en cada operación. Esto solo es seguro porque, gracias al candado de la siguiente sección, ningún otro programa puede cambiar la imagen mientras está abierta.
+
 Eliminar solo marca la entrada como vacía. Los datos se quedan en el disco igual que en otros sistemas de archivos, pero ese espacio ya queda libre para el siguiente archivo. Como aquí no hay ligas duras no hace falta llevar un contador de referencias como el de los inodos, en cuanto se borra la única entrada que apunta al archivo su espacio queda libre.
 
 ## Sincronización entre hilos
@@ -123,6 +125,8 @@ El segundo es una `threading.Condition` dentro de cada `Solicitud`. Mientras cop
 Se nota que los dos hilos van a su propio ritmo porque la barra no siempre pasa por todos los porcentajes, si el hilo del disco avisa dos veces antes de que la interfaz alcance a despertar, la interfaz solo dibuja el último avance.
 
 No hizo falta un candado para la imagen porque solo un hilo la usa, las operaciones nunca se pueden encimar porque se atienden en orden desde la cola. Si el hilo del disco se encuentra un error no se cae, se lo regresa a la interfaz dentro de la solicitud, si no la interfaz se quedaría esperando para siempre.
+
+Además de la sincronización entre mis dos hilos, la imagen tiene un candado para que otro proceso no la use al mismo tiempo, por ejemplo si se abre el programa dos veces. Uso `fcntl.flock`, exclusivo si la imagen se puede escribir y compartido si se abrió solo para lectura, como los candados de la presentación 14 (diapositivas 18 a 23). Así varios programas pueden leer la misma imagen, pero ninguno la puede escribir mientras otro la tiene abierta. Si otro programa ya la tiene el mío avisa en lugar de quedarse esperando, el candado se suelta solo cuando se cierra la imagen. En Unix este candado es consultivo, o sea que solo lo respetan los programas que también lo piden.
 
 ## Decisiones que tomé
 
@@ -146,7 +150,7 @@ La copia de la imagen que estaba usando venía sin permiso de escritura, con eso
 
 Cuando separé el programa en dos hilos la barra de progreso se dibujaba dos veces al llegar al 100%. Pasaba porque la interfaz se despierta tanto con el último aviso de avance como con el aviso de que la operación terminó, en los dos casos dibujaba la barra. Lo arreglé guardando el último avance dibujado para redibujar solo si cambió.
 
-Algo que también tuve que corregir fue el propio README. Al principio me enfoqué en que el código funcionara y lo descuidé un poco, en las primeras etapas solo explicaba cómo usar el programa y cómo funciona, pero no contaba las complicaciones ni las dudas que fueron saliendo. Desde la etapa 4 lo fui mejorando junto con el código, en la 5 agregué la explicación de la sincronización entre hilos y los problemas que conozco, en la última relacioné las dudas y decisiones con las presentaciones 14 y 15 del curso, para que se entienda el proceso y no solo el resultado.
+Algo que también tuve que corregir fue el propio README. Al principio me enfoqué en que el código funcionara y lo descuidé un poco, en las primeras etapas solo explicaba cómo usar el programa y cómo funciona, pero no contaba las complicaciones ni las dudas que fueron saliendo. Desde la etapa 4 lo fui mejorando junto con el código, en la 5 agregué la explicación de la sincronización entre hilos y los problemas que conozco, en la 6 relacioné las dudas y decisiones con las presentaciones 14 y 15 del curso. De ahí salieron las dos mejoras de la última etapa, el candado sobre la imagen y el directorio en memoria, que antes tenía como pendientes. La idea es que se entienda el proceso y no solo el resultado.
 
 ## Dudas resueltas
 
@@ -160,7 +164,7 @@ Otra cosa que se aclaró con la presentación 15 (diapositiva 14) fue por qué l
 
 Al listar el disco me llamó la atención que `README.org` empieza en el cluster 6 y no en el 5, que es el primero del área de datos. Revisé los bytes del directorio y de verdad dice 6, el cluster 5 simplemente quedó libre. Cuando copié un archivo pequeño el primer ajuste lo acomodó justo ahí, lo que me sirvió para comprobar que la búsqueda de huecos funciona.
 
-Una duda al separar el programa en dos hilos fue si hacía falta un candado sobre la imagen. En la presentación 14 (diapositivas 18 a 22) viene que manipular un archivo de forma concurrente puede corromperlo, para eso existen los candados compartidos y exclusivos, que se parecen al patrón lectores/escritores. En mi programa solo el hilo del disco toca la imagen, así que es como si tuviera siempre el candado exclusivo y no hace falta otro.
+Una duda al separar el programa en dos hilos fue si hacía falta un candado sobre la imagen. En la presentación 14 (diapositivas 18 a 22) viene que manipular un archivo de forma concurrente puede corromperlo, para eso existen los candados compartidos y exclusivos, que se parecen al patrón lectores/escritores. En mi programa solo el hilo del disco toca la imagen, así que es como si tuviera siempre el candado exclusivo y no hace falta otro. Lo que sí hacía falta era protegerla de otros procesos, eso lo explico en la sección de sincronización.
 
 Comparando con FAT (presentación 15, diapositivas 30 y 31), ahí borrar un archivo solo cambia el primer carácter de su nombre por `0xE5`, por eso se puede des-borrar si nadie vuelve a ocupar la entrada. En FiUnamFS la entrada vacía lleva todo el nombre con `#`, así que el nombre se pierde, aunque los datos siguen en su lugar hasta que otro archivo ocupe esos clusters.
 
@@ -178,11 +182,7 @@ El hilo del disco atiende una solicitud a la vez y la interfaz se queda esperand
 
 Como la asignación es contigua un archivo no puede crecer (presentación 15, diapositiva 33), para agregarle datos habría que moverlo completo a un hueco más grande. Por eso el programa no tiene opción para modificar archivos, solo para copiarlos completos.
 
-El programa no evita que otro proceso abra la misma imagen al mismo tiempo, por ejemplo si se corre dos veces. Ahí sí haría falta un candado sobre el archivo, que en Unix normalmente es consultivo (presentación 14, diapositivas 21 y 23).
-
 Para mejorarlo se podría agregar una opción para desfragmentar, que recorra los archivos hacia el inicio del área de datos y junte todos los huecos en uno solo, así nunca fallaría una copia por falta de espacio contiguo, que es la fragmentación externa que la presentación 15 (diapositiva 33) pone como una de las desventajas de la asignación contigua.
-
-Ahorita el programa vuelve a leer el directorio del disco en cada operación. En la presentación 15 (diapositiva 39) viene que con asignación contigua basta con tener el directorio en caché para conocer la ubicación de todos los archivos, así que se podría leer una sola vez al abrir la imagen y solo escribirlo cuando cambie.
 
 También estaría bien que el hilo del disco pudiera atender varias solicitudes mientras la interfaz sigue respondiendo, por ejemplo copiar varios archivos en segundo plano.
 
