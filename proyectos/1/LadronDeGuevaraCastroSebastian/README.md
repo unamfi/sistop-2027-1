@@ -2,11 +2,11 @@
 
 Ladrón de Guevara Castro Sebastián ([`Sebastian82879`](https://github.com/Sebastian82879)), entrega individual.
 
-Es un programa para trabajar con imágenes del sistema de archivos `FiUnamFS` versión `27-1`, con él se puede listar el directorio, copiar archivos de la imagen a la computadora y de la computadora a la imagen, también eliminarlos.
+Es un programa para trabajar con imágenes del sistema de archivos `FiUnamFS` versión `27-1`, con él se puede listar el directorio, copiar archivos de la imagen a la computadora y de la computadora a la imagen, también eliminarlos. Por dentro trabaja con dos hilos que se comunican con mecanismos de sincronización.
 
 ## Entorno y requisitos
 
-Lo escribí en Python 3 (CPython) y necesita la versión 3.8 o más reciente, yo lo probé con Python 3.13. Solo usa la biblioteca estándar (`struct`, `math`, `os`, `datetime`, `dataclasses`), así que no hay que instalar nada con `pip`. Debería funcionar en cualquier sistema donde corra Python, la interfaz es de texto y se usa desde la terminal.
+Lo escribí en Python 3 (CPython) y necesita la versión 3.8 o más reciente, yo lo probé con Python 3.13. Solo usa la biblioteca estándar (`struct`, `math`, `threading`, `queue`, `os`, `datetime`, `dataclasses`), así que no hay que instalar nada con `pip`. Debería funcionar en cualquier sistema donde corra Python, la interfaz es de texto y se usa desde la terminal.
 
 ## Cómo ejecutarlo
 
@@ -92,7 +92,7 @@ Para que el menú se entienda sin leer nada las opciones están numeradas, los a
 
 ## Cómo está organizado
 
-El código está en dos archivos. `fiunamfs.py` tiene la clase `FiUnamFS`, que sabe leer el superbloque, interpretar el directorio y mover datos entre la imagen y la computadora. `main.py` tiene la interfaz, es el que se ejecuta. Por ahora todo corre en un solo hilo.
+El código está en dos archivos. `fiunamfs.py` tiene la clase `FiUnamFS`, que sabe leer el superbloque, interpretar el directorio y mover datos entre la imagen y la computadora, no sabe nada de hilos. `main.py` tiene la interfaz y los dos hilos, es el que se ejecuta.
 
 ## Estrategia
 
@@ -108,7 +108,21 @@ FiUnamFS no tiene un mapa de bits para saber qué clusters están libres, como d
 
 Eliminar solo marca la entrada como vacía. Los datos se quedan en el disco igual que en otros sistemas de archivos, pero ese espacio ya queda libre para el siguiente archivo. Como aquí no hay ligas duras no hace falta llevar un contador de referencias como el de los inodos, en cuanto se borra la única entrada que apunta al archivo su espacio queda libre.
 
-Lo que sigue es separar el programa en dos hilos.
+## Sincronización entre hilos
+
+El programa usa dos hilos con papeles distintos.
+
+El hilo principal es la interfaz, muestra el menú, le pregunta al usuario qué hacer y arma una `Solicitud` con la operación.
+
+El hilo del disco (`HiloDisco`) es el único que toca la imagen, saca las solicitudes de una cola, las ejecuta una por una y va avisando cuánto lleva.
+
+Para que se comuniquen uso dos mecanismos. El primero es una `queue.Queue`, por donde la interfaz manda las solicitudes y el hilo del disco las recibe, es el patrón productor-consumidor, si la cola está vacía el hilo del disco se queda dormido en `get()` sin gastar procesador. Para terminar el programa la interfaz mete `None` en la cola, el hilo del disco lo toma como señal para cerrar la imagen y salir, la interfaz lo espera con `join()`.
+
+El segundo es una `threading.Condition` dentro de cada `Solicitud`. Mientras copia, el hilo del disco actualiza los bytes que lleva y hace `notify()`, la interfaz está dormida en `wait()` y cada vez que la despiertan dibuja la barra de progreso. Cuando la operación termina el hilo del disco guarda el resultado o el error, marca la solicitud como terminada y vuelve a notificar. Esos campos solo se leen o se escriben teniendo la condición, así la interfaz nunca ve un estado a medias, por ejemplo una solicitud marcada como terminada pero todavía sin su resultado.
+
+Se nota que los dos hilos van a su propio ritmo porque la barra no siempre pasa por todos los porcentajes, si el hilo del disco avisa dos veces antes de que la interfaz alcance a despertar, la interfaz solo dibuja el último avance.
+
+No hizo falta un candado para la imagen porque solo un hilo la usa, las operaciones nunca se pueden encimar porque se atienden en orden desde la cola. Si el hilo del disco se encuentra un error no se cae, se lo regresa a la interfaz dentro de la solicitud, si no la interfaz se quedaría esperando para siempre.
 
 ## Decisiones que tomé
 
@@ -126,7 +140,9 @@ Con la imagen del profe me di cuenta de que no sigue al pie de la letra la espec
 
 La copia de la imagen que estaba usando venía sin permiso de escritura, con eso me di cuenta de que el programa no la podía abrir porque intentaba abrirla para leer y escribir de una vez. Lo cambié para que si no tiene permiso la abra solo para lectura, así todavía se puede listar y copiar hacia la computadora, las operaciones que escriben avisan en lugar de tronar.
 
-Algo que también tuve que corregir fue el propio README. Al principio me enfoqué en que el código funcionara y lo descuidé un poco, en las primeras etapas solo explicaba cómo usar el programa y cómo funciona, pero no contaba las complicaciones ni las dudas que fueron saliendo. Desde esta etapa lo voy mejorando junto con el código, para que se entienda el proceso y no solo el resultado.
+Cuando separé el programa en dos hilos la barra de progreso se dibujaba dos veces al llegar al 100%. Pasaba porque la interfaz se despierta tanto con el último aviso de avance como con el aviso de que la operación terminó, en los dos casos dibujaba la barra. Lo arreglé guardando el último avance dibujado para redibujar solo si cambió.
+
+Algo que también tuve que corregir fue el propio README. Al principio me enfoqué en que el código funcionara y lo descuidé un poco, en las primeras etapas solo explicaba cómo usar el programa y cómo funciona, pero no contaba las complicaciones ni las dudas que fueron saliendo. Desde la etapa anterior lo fui mejorando junto con el código, en esta agregué también la explicación de la sincronización entre hilos y los problemas que conozco, para que se entienda el proceso y no solo el resultado.
 
 ## Dudas resueltas
 
@@ -135,3 +151,21 @@ La primera vez que corrí el programa no entendía de dónde salía el "Disco de
 Al listar el disco me llamó la atención que `README.org` empieza en el cluster 6 y no en el 5, que es el primero del área de datos. Revisé los bytes del directorio y de verdad dice 6, el cluster 5 simplemente quedó libre. Cuando copié un archivo pequeño el primer ajuste lo acomodó justo ahí, lo que me sirvió para comprobar que la búsqueda de huecos funciona.
 
 La especificación dice que la imagen no tiene tabla de particiones y que hospeda directamente un volumen. Con la clase de sistemas de archivos quedó clara la diferencia, una partición es solo un corte del dispositivo y un volumen es lo que ya tiene formato de un sistema de archivos, por eso aquí el superbloque está desde el byte 0 de la imagen sin nada antes.
+
+## Problemas y mejoras
+
+Hay algunos problemas que conozco y que no alcancé a resolver.
+
+Si un archivo mide 0 bytes el programa le asigna como cluster inicial el primero libre aunque no ocupe ninguno, no afecta nada, pero en el listado puede parecer que comparte cluster con otro archivo.
+
+Si el programa se cierra de golpe a la mitad de una copia hacia `FiUnamFS` (por ejemplo si se apaga la computadora) los datos que alcanzaron a escribirse se quedan en el disco. Como la entrada del directorio se escribe al final el archivo no aparece, ese espacio sigue contando como libre, pero son datos que quedan ahí sin usar.
+
+Los nombres de 15 caracteres ocupan todo el campo y no les queda lugar para el byte nulo que pone la imagen del profe. Mi programa los lee bien, pero no sé si otro programa que espere ese nulo los leería igual.
+
+El hilo del disco atiende una solicitud a la vez y la interfaz se queda esperando, así que mientras copia un archivo no se puede hacer otra cosa.
+
+Para mejorarlo se podría agregar una opción para desfragmentar, que recorra los archivos hacia el inicio del área de datos y junte todos los huecos en uno solo, así nunca fallaría una copia por falta de espacio contiguo.
+
+También estaría bien que el hilo del disco pudiera atender varias solicitudes mientras la interfaz sigue respondiendo, por ejemplo copiar varios archivos en segundo plano.
+
+Otra idea es hacer un módulo de FUSE como los ejemplos que nos mostró el profe. Con `readdir`, `getattr` y `read` ya se podría montar la imagen como una carpeta de solo lectura, agregando `create`, `write` y `unlink` también se podría modificar desde cualquier programa sin pasar por el menú.

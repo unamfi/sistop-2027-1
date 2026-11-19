@@ -4,8 +4,9 @@ Operativos (sistop-2027-1)
 Sebastián Ladrón de Guevara Castro
 
 Este módulo sabe leer y escribir las tres zonas del disco, el superbloque
-(cluster 0), el directorio (clusters 1 a 4) y el área de datos. La interfaz
-está en main.py.
+(cluster 0), el directorio (clusters 1 a 4) y el área de datos. No sabe nada
+de hilos, de eso se encarga main.py, que crea un solo objeto FiUnamFS y lo
+usa únicamente desde el hilo del disco.
 """
 
 import math

@@ -1,20 +1,102 @@
 #!/usr/bin/env python3
 """
-Interfaz del proyecto FiUnamFS, Sistemas Operativos (sistop-2027-1)
+Interfaz y manejo de hilos del proyecto FiUnamFS, Sistemas Operativos
+(sistop-2027-1)
 Sebastián Ladrón de Guevara Castro
 
-Menú de texto para listar, copiar y eliminar archivos de una imagen
-FiUnamFS. Por ahora todo corre en un solo hilo, la interfaz llama
-directamente a los métodos de FiUnamFS.
+El programa trabaja con dos hilos.
+
+- El hilo principal (interfaz) muestra el menú, le pregunta al usuario qué
+  hacer y arma una Solicitud con la operación.
+- El hilo del disco es el único que toca la imagen, saca las solicitudes de
+  una cola, las ejecuta una por una y va reportando su avance.
+
+Se comunican con dos mecanismos de sincronización, una queue.Queue por la que
+viajan las solicitudes (productor-consumidor) y una threading.Condition en
+cada Solicitud, con la que el hilo del disco avisa cuánto lleva copiado y
+cuándo terminó, mientras la interfaz espera dormida y dibuja la barra de
+progreso cada vez que la despiertan.
 
 Se ejecuta con python3 main.py [imagen], si no se le pasa la imagen busca
 fiunamfs.img en la carpeta actual.
 """
 
 import os
+import queue
 import sys
+import threading
 
 from fiunamfs import FiUnamFS, ErrorFiUnamFS, LARGO_NOMBRE, formatear_fecha, validar_nombre
+
+
+class Solicitud:
+    """
+    Una operación que la interfaz le pide al hilo del disco. Todos sus campos
+    de estado (avance, terminada, resultado, error) se leen y se escriben
+    solo mientras se tiene la condición, para que la interfaz nunca vea un
+    estado a medias.
+    """
+
+    def __init__(self, operacion, *argumentos):
+        self.operacion = operacion
+        self.argumentos = argumentos
+        self.condicion = threading.Condition()
+        self.hecho = 0
+        self.total = 0
+        self.terminada = False
+        self.resultado = None
+        self.error = None
+
+    def reportar_avance(self, hecho, total):
+        with self.condicion:
+            self.hecho, self.total = hecho, total
+            self.condicion.notify()
+
+    def terminar(self, resultado=None, error=None):
+        with self.condicion:
+            self.resultado, self.error = resultado, error
+            self.terminada = True
+            self.condicion.notify()
+
+
+class HiloDisco(threading.Thread):
+    """
+    Dueño exclusivo del objeto FiUnamFS. Como ningún otro hilo lee ni escribe
+    la imagen, no hace falta un candado sobre ella, las operaciones nunca se
+    pueden encimar porque se atienden en orden desde la cola.
+    """
+
+    def __init__(self, fs):
+        super().__init__(name='disco')
+        self.fs = fs
+        self.solicitudes = queue.Queue()
+
+    def run(self):
+        while True:
+            solicitud = self.solicitudes.get()
+            # None es la señal de que el programa terminó
+            if solicitud is None:
+                break
+            try:
+                solicitud.terminar(resultado=self._ejecutar(solicitud))
+            except Exception as e:
+                # Cualquier error se le regresa a la interfaz en lugar de
+                # tirar el hilo, si no la interfaz se quedaría esperando
+                solicitud.terminar(error=e)
+        self.fs.cerrar()
+
+    def _ejecutar(self, solicitud):
+        fs = self.fs
+        argumentos = solicitud.argumentos
+        if solicitud.operacion == 'listar':
+            return fs.listar(), fs.espacio_libre()
+        if solicitud.operacion == 'exportar':
+            return fs.exportar(*argumentos, avance=solicitud.reportar_avance)
+        if solicitud.operacion == 'importar':
+            return fs.importar(*argumentos, avance=solicitud.reportar_avance)
+        if solicitud.operacion == 'eliminar':
+            return fs.eliminar(*argumentos)
+        raise ValueError(f'Operación desconocida: {solicitud.operacion}')
 
 
 def dibujar_barra(hecho, total, ancho=30):
@@ -26,18 +108,41 @@ def dibujar_barra(hecho, total, ancho=30):
 
 class Interfaz:
     def __init__(self, fs):
-        self.fs = fs
+        self.etiqueta = fs.etiqueta
+        self.hilo_disco = HiloDisco(fs)
+        self.hilo_disco.start()
 
-    def con_avance(self, operacion, *argumentos):
-        """Ejecuta una copia mostrando la barra de progreso."""
-        operacion(*argumentos, avance=dibujar_barra)
-        print()
+    def pedir(self, operacion, *argumentos, mostrar_avance=False):
+        """Manda una solicitud al hilo del disco y espera a que la termine."""
+        solicitud = Solicitud(operacion, *argumentos)
+        self.hilo_disco.solicitudes.put(solicitud)
+
+        dibujado = None
+        with solicitud.condicion:
+            while not solicitud.terminada:
+                # wait() suelta la condición mientras duerme, así el hilo del
+                # disco puede tomarla para reportar el avance
+                solicitud.condicion.wait()
+                # El aviso de que ya terminó también la despierta, en ese caso
+                # el avance es el mismo y no vale la pena redibujarlo
+                if mostrar_avance and solicitud.total and solicitud.hecho != dibujado:
+                    dibujar_barra(solicitud.hecho, solicitud.total)
+                    dibujado = solicitud.hecho
+        if mostrar_avance and solicitud.total:
+            print()
+
+        if solicitud.error:
+            raise solicitud.error
+        return solicitud.resultado
+
+    def terminar(self):
+        self.hilo_disco.solicitudes.put(None)
+        self.hilo_disco.join()
 
     # ---- Pantallas ----
 
     def mostrar_listado(self):
-        entradas = self.fs.listar()
-        libre = self.fs.espacio_libre()
+        entradas, libre = self.pedir('listar')
         print()
         if not entradas:
             print('  El disco está vacío')
@@ -74,7 +179,7 @@ class Interfaz:
         destino = os.path.join(carpeta, entrada.nombre)
         if os.path.exists(destino) and not confirmar(f'  "{destino}" ya existe, ¿lo reemplazo?'):
             return
-        self.con_avance(self.fs.exportar, entrada.nombre, destino)
+        self.pedir('exportar', entrada.nombre, destino, mostrar_avance=True)
         print(f'  Listo, se copió a {os.path.abspath(destino)}')
 
     def copiar_hacia_fiunamfs(self):
@@ -98,7 +203,7 @@ class Interfaz:
                 if not nombre:
                     return
 
-        self.con_avance(self.fs.importar, origen, nombre)
+        self.pedir('importar', origen, nombre, mostrar_avance=True)
         print(f'  Listo, se copió como "{nombre}"')
 
     def eliminar(self):
@@ -106,7 +211,7 @@ class Interfaz:
         if entrada is None:
             return
         if confirmar(f'  ¿Seguro que quieres eliminar "{entrada.nombre}"?'):
-            self.fs.eliminar(entrada.nombre)
+            self.pedir('eliminar', entrada.nombre)
             print(f'  Se eliminó "{entrada.nombre}"')
 
     def menu(self):
@@ -118,7 +223,7 @@ class Interfaz:
         }
         salir = str(len(opciones) + 1)
         while True:
-            print(f'\n=== FiUnamFS · volumen "{self.fs.etiqueta}" ===')
+            print(f'\n=== FiUnamFS · volumen "{self.etiqueta}" ===')
             for tecla, (texto, _) in opciones.items():
                 print(f'  {tecla}) {texto}')
             print(f'  {salir}) Salir')
@@ -161,12 +266,13 @@ def main():
     if fs.solo_lectura:
         print('Aviso: la imagen no tiene permiso de escritura, solo se puede listar y copiar hacia la computadora')
 
+    interfaz = Interfaz(fs)
     try:
-        Interfaz(fs).menu()
+        interfaz.menu()
     except (KeyboardInterrupt, EOFError):
         print()
     finally:
-        fs.cerrar()
+        interfaz.terminar()
 
 
 if __name__ == '__main__':
