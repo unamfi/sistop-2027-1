@@ -1,0 +1,14 @@
+# Imágenes de disco de prueba
+*.img
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Editores / sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
