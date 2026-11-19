@@ -89,7 +89,7 @@ from datetime import datetime
 import fuse
 from collections import deque
 
-
+#Version de la API de FUSE que se está utilizando
 fuse.fuse_python_api = (0, 2)
 
 # Constantes de FiUnamFS (1440 KB = 720 clusters de 2048 bytes)
@@ -107,7 +107,7 @@ class FiUnamFS(fuse.Fuse):
         ruta = "fiunamfs.img" if os.path.exists("fiunamfs.img") else "../fiunamfs.img"
         self.disco = open(os.path.abspath(ruta), "rb+")
 
-        # Validación obligatoria de identidad y versión en el superbloque (Cluster 0)
+        # Validación de identidad y versión en el superbloque 
         sb = self.disco.read(CLUSTER_SIZE)
         if sb[0:8] != b"FiUnamFS" or sb[10:14] != b"27-1":
             raise ValueError("Imagen inválida: debe ser FiUnamFS versión 27-1.")
@@ -126,18 +126,18 @@ class FiUnamFS(fuse.Fuse):
     def fsdestroy(self):
         with self.mutex:
             self.activo = False
-        self.peticiones.release()  # Despierta al trabajador para que cierre limpio
+        self.peticiones.release() 
         self.hilo_trabajador.join(timeout=2)
         self.disco.close()
 
     def _encolar_operacion(self, mensaje: str):
-        """Actúa como el 'jefe': mete la operación a la cola y libera un permiso."""
+        """Mete la operación a la cola y libera un permiso."""
         with self.mutex:
             self.cola_cambios.append(mensaje)
         self.peticiones.release()
 
     def _trabajador_disco(self):
-        """Hilo trabajador: espera peticiones en el semáforo y sincroniza el disco."""
+        """Espera peticiones en el semáforo y sincroniza el disco."""
         while True:
             self.peticiones.acquire()
 
@@ -154,58 +154,77 @@ class FiUnamFS(fuse.Fuse):
     # Operaciones sobre directorio y asignación contigua
     # ------------------------------------------------------------------
 
-    def _leer_directorio(self) -> list:
+    def enlistar_archivos(self):
+        """Recorre las 128 entradas del directorio y devuelve los archivos válidos ordenados."""
         archivos = []
         self.disco.seek(DIR_INICIO * CLUSTER_SIZE)
+
         for i in range(MAX_ENTRADAS):
-            ficha = self.disco.read(ENTRADA_SIZE)
-            tipo = chr(ficha[0])
-            nombre = ficha[1:16].decode("ascii", errors="ignore").strip("\x00 ")
-            if tipo == "F" and nombre and not nombre.startswith("#"):
-                tamano, cluster_ini = struct.unpack("<II", ficha[16:24])
+            entrada = self.disco.read(ENTRADA_SIZE)
+            tipo = chr(entrada[0])
+            nombre = entrada[1:16].decode("ascii", errors="ignore").strip("\x00 ")
+
+            # Validamos que sea un archivo activo ('F') y no una entrada vacía ('#...')
+            if tipo == "F" and nombre != "" and not nombre.startswith("#"):
+                tamano, cluster_ini = struct.unpack("<II", entrada[16:24])
                 archivos.append({
                     "indice": i,
                     "nombre": nombre,
                     "tamano": tamano,
                     "cluster_ini": cluster_ini,
-                    "creacion": ficha[24:38].decode("ascii", errors="ignore"),
-                    "modif": ficha[38:52].decode("ascii", errors="ignore"),
+                    "creacion": entrada[24:38].decode("ascii", errors="ignore"),
+                    "modif": entrada[38:52].decode("ascii", errors="ignore"),
                 })
+
+        # Ordenamiento por nombre 
+        archivos.sort(key=lambda archivo: archivo["nombre"])
         return archivos
 
-    def _escribir_ficha(self, indice: int, nombre: str, tamano: int,
-                        cluster_ini: int, creacion: str, modif: str):
-        ficha = (
-            b"F"
-            + nombre.encode("ascii")[:15].ljust(15, b"\x00")
-            + struct.pack("<II", tamano, cluster_ini)
-            + creacion.encode("ascii")[:14].ljust(14, b"0")
-            + modif.encode("ascii")[:14].ljust(14, b"0")
-            + b"\x00" * 12
-        )
-        self.disco.seek((DIR_INICIO * CLUSTER_SIZE) + (indice * ENTRADA_SIZE))
-        self.disco.write(ficha)
+    def escribir_entrada_directorio(self, indice: int, nombre: str, tamano: int,
+                                    cluster_ini: int, creacion: str, modif: str):
+        """Empaqueta una ficha de 64 bytes en ASCII/Little-Endian y la guarda en el directorio."""
+        nombre_bytes = nombre.encode("ascii")[:15].ljust(15, b"\x00")
+        datos_numericos = struct.pack("<II", tamano, cluster_ini)
+        fecha_creacion = creacion.encode("ascii")[:14].ljust(14, b"0")
+        fecha_modif = modif.encode("ascii")[:14].ljust(14, b"0")
+        relleno = b"\x00" * 12
 
-    def _buscar_contiguo(self, archivos: list, clusters_req: int, ignorar_idx: int = -1) -> int:
-        """Devuelve el cluster inicial de un bloque contiguo libre o -1 si no cabe."""
-        ocupados = [True] * DATOS_INICIO + [False] * (TOTAL_CLUSTERS - DATOS_INICIO)
-        for a in archivos:
-            if a["indice"] == ignorar_idx:
+        entrada = b"F" + nombre_bytes + datos_numericos + fecha_creacion + fecha_modif + relleno
+        posicion_bytes = (DIR_INICIO * CLUSTER_SIZE) + (indice * ENTRADA_SIZE)
+
+        self.disco.seek(posicion_bytes)
+        self.disco.write(entrada)
+
+    def buscar_clusters_contiguos(self, archivos: list, clusters_necesarios: int,
+                                  indice_ignorar: int = -1):
+        """Busca un bloque continuo de clusters libres y devuelve el cluster inicial (o -1)."""
+        # Mapa del disco: False = libre, True = ocupado
+        clusters_ocupados = [False] * TOTAL_CLUSTERS
+
+        # Los clusters 0 al 4 están reservados (Superbloque y Directorio)
+        for c in range(DATOS_INICIO):
+            clusters_ocupados[c] = True
+
+        # Marcamos los clusters que ya pertenecen a otros archivos
+        for arch in archivos:
+            if arch["indice"] == indice_ignorar:
                 continue
-            usados = max(1, (a["tamano"] + CLUSTER_SIZE - 1) // CLUSTER_SIZE)
-            for c in range(a["cluster_ini"], min(TOTAL_CLUSTERS, a["cluster_ini"] + usados)):
-                ocupados[c] = True
+            clusters_usados = max(1, (arch["tamano"] + CLUSTER_SIZE - 1) // CLUSTER_SIZE)
+            fin = min(TOTAL_CLUSTERS, arch["cluster_ini"] + clusters_usados)
+            for c in range(arch["cluster_ini"], fin):
+                clusters_ocupados[c] = True
 
-        seguidos = 0
+        # Buscamos N clusters libres seguidos en la zona de datos
+        contador_libres = 0
         for c in range(DATOS_INICIO, TOTAL_CLUSTERS):
-            seguidos = seguidos + 1 if not ocupados[c] else 0
-            if seguidos == clusters_req:
-                return c - clusters_req + 1
-        return -1
+            if not clusters_ocupados[c]:
+                contador_libres += 1
+                if contador_libres == clusters_necesarios:
+                    return c - clusters_necesarios + 1
+            else:
+                contador_libres = 0
 
-    # ------------------------------------------------------------------
-    # Interfaz FUSE (ls, cp, rm)
-    # ------------------------------------------------------------------
+        return -1 
 
     # ------------------------------------------------------------------
     # Interfaz FUSE (ls, cp, rm)
@@ -218,9 +237,8 @@ class FiUnamFS(fuse.Fuse):
             st.st_nlink = 2
             return st
 
-        # Solo cambia self.condicion -> self.mutex
         with self.mutex:
-            arch = next((a for a in self._leer_directorio() if a["nombre"] == path[1:]), None)
+            arch = next((a for a in self.enlistar_archivos() if a["nombre"] == path[1:]), None)
         if not arch:
             return -errno.ENOENT
 
@@ -239,7 +257,7 @@ class FiUnamFS(fuse.Fuse):
         if path != "/":
             return -errno.ENOENT
         with self.mutex:
-            archivos = self._leer_directorio()
+            archivos = self.enlistar_archivos()
         yield fuse.Direntry(".")
         yield fuse.Direntry("..")
         for a in archivos:
@@ -247,7 +265,7 @@ class FiUnamFS(fuse.Fuse):
 
     def read(self, path: str, size: int, offset: int) -> bytes:
         with self.mutex:
-            arch = next((a for a in self._leer_directorio() if a["nombre"] == path[1:]), None)
+            arch = next((a for a in self.enlistar_archivos() if a["nombre"] == path[1:]), None)
             if not arch:
                 return -errno.ENOENT
             if offset >= arch["tamano"]:
@@ -266,25 +284,25 @@ class FiUnamFS(fuse.Fuse):
             return -errno.EINVAL
 
         with self.mutex:
-            archivos = self._leer_directorio()
+            archivos = self.enlistar_archivos()
             if any(a["nombre"] == nombre for a in archivos):
                 return -errno.EEXIST
 
             usados = {a["indice"] for a in archivos}
             slot = next((i for i in range(MAX_ENTRADAS) if i not in usados), -1)
-            cluster_ini = self._buscar_contiguo(archivos, 1)
+            cluster_ini = self.buscar_clusters_contiguos(archivos, 1)
             if slot == -1 or cluster_ini == -1:
                 return -errno.ENOSPC
 
             ahora = datetime.now().strftime("%Y%m%d%H%M%S")
-            self._escribir_ficha(slot, nombre, 0, cluster_ini, ahora, ahora)
+            self.escribir_entrada_directorio(slot, nombre, 0, cluster_ini, ahora, ahora)
 
         self._encolar_operacion(f"Creado: {nombre}")
         return 0
 
     def write(self, path: str, body: bytes, offset: int) -> int:
         with self.mutex:
-            archivos = self._leer_directorio()
+            archivos = self.enlistar_archivos()
             arch = next((a for a in archivos if a["nombre"] == path[1:]), None)
             if not arch:
                 return -errno.ENOENT
@@ -295,7 +313,7 @@ class FiUnamFS(fuse.Fuse):
             cluster_ini = arch["cluster_ini"]
 
             if req_clusters > act_clusters:
-                nuevo_ini = self._buscar_contiguo(archivos, req_clusters, arch["indice"])
+                nuevo_ini = self.buscar_clusters_contiguos(archivos, req_clusters, arch["indice"])
                 if nuevo_ini == -1:
                     return -errno.ENOSPC
                 if nuevo_ini != cluster_ini and arch["tamano"] > 0:
@@ -309,7 +327,7 @@ class FiUnamFS(fuse.Fuse):
             self.disco.write(body)
 
             ahora = datetime.now().strftime("%Y%m%d%H%M%S")
-            self._escribir_ficha(arch["indice"], arch["nombre"], nuevo_tam, cluster_ini, arch["creacion"], ahora)
+            self.escribir_entrada_directorio(arch["indice"], arch["nombre"], nuevo_tam, cluster_ini, arch["creacion"], ahora)
             nombre_arch = arch["nombre"]
 
         self._encolar_operacion(f"Escrito: {nombre_arch} ({nuevo_tam} B)")
@@ -317,7 +335,7 @@ class FiUnamFS(fuse.Fuse):
 
     def unlink(self, path: str):
         with self.mutex:
-            arch = next((a for a in self._leer_directorio() if a["nombre"] == path[1:]), None)
+            arch = next((a for a in self.enlistar_archivos() if a["nombre"] == path[1:]), None)
             if not arch:
                 return -errno.ENOENT
 
