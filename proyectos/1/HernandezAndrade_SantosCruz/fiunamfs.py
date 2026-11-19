@@ -78,7 +78,6 @@ Las entradas no utilizadas del directorio se identifican porque en el campo de n
 --------------------------------------------------------------------------------------
 
 '''
-
 import os
 import sys
 import stat
@@ -99,6 +98,8 @@ DIR_INICIO = 1
 ENTRADA_SIZE = 64
 MAX_ENTRADAS = 128
 DATOS_INICIO = 5
+DIR_INICIO = 1
+ENTRADA_SIZE = 64
 
 
 class FiUnamFS(fuse.Fuse):
@@ -107,10 +108,7 @@ class FiUnamFS(fuse.Fuse):
         ruta = "fiunamfs.img" if os.path.exists("fiunamfs.img") else "../fiunamfs.img"
         self.disco = open(os.path.abspath(ruta), "rb+")
 
-        # Validación de identidad y versión en el superbloque 
-        sb = self.disco.read(CLUSTER_SIZE)
-        if sb[0:8] != b"FiUnamFS" or sb[10:14] != b"27-1":
-            raise ValueError("Imagen inválida: debe ser FiUnamFS versión 27-1.")
+        self.leer_superbloque()
 
         # Mecanismos de sincronización (Patrón Jefe-Trabajador con semáforos)
         self.mutex = threading.Semaphore(1)       # Protege acceso a la cola y al archivo .img
@@ -118,7 +116,23 @@ class FiUnamFS(fuse.Fuse):
         self.cola_cambios = deque()               # Equivalente a la 'cinta' de solicitudes
         self.activo = True
         self.hilo_trabajador = threading.Thread(target=self._trabajador_disco, daemon=True)
+        
+    def leer_superbloque(self):
+        """Valida identidad/versión y extrae parámetros geométricos del superbloque."""
+        self.disco.seek(0)
+        sb = self.disco.read(52)
 
+        if sb[0:8] != b"FiUnamFS" or sb[10:14] != b"27-1":
+            raise ValueError("Imagen inválida: debe ser FiUnamFS versión 27-1.")
+
+        self.etiqueta = sb[20:36].decode("ascii", errors="ignore").strip("\x00 ")
+        self.cluster_size, self.clusters_dir, self.total_clusters = struct.unpack("<III", sb[40:52])
+
+        if self.cluster_size <= 0 or self.clusters_dir <= 0 or self.total_clusters <= self.clusters_dir + 1:
+            raise ValueError("Superbloque corrupto: dimensiones de clusters inválidas.")
+
+        self.datos_inicio = DIR_INICIO + self.clusters_dir
+        self.max_entradas = (self.clusters_dir * self.cluster_size) // ENTRADA_SIZE
 
     def fsinit(self):
         self.hilo_trabajador.start()
@@ -157,7 +171,7 @@ class FiUnamFS(fuse.Fuse):
     def enlistar_archivos(self):
         """Recorre las 128 entradas del directorio y devuelve los archivos válidos ordenados."""
         archivos = []
-        self.disco.seek(DIR_INICIO * CLUSTER_SIZE)
+        self.disco.seek(DIR_INICIO * self.cluster_size)
 
         for i in range(MAX_ENTRADAS):
             entrada = self.disco.read(ENTRADA_SIZE)
@@ -190,7 +204,7 @@ class FiUnamFS(fuse.Fuse):
         relleno = b"\x00" * 12
 
         entrada = b"F" + nombre_bytes + datos_numericos + fecha_creacion + fecha_modif + relleno
-        posicion_bytes = (DIR_INICIO * CLUSTER_SIZE) + (indice * ENTRADA_SIZE)
+        posicion_bytes = (DIR_INICIO * self.cluster_size) + (indice * ENTRADA_SIZE)
 
         self.disco.seek(posicion_bytes)
         self.disco.write(entrada)
@@ -199,24 +213,24 @@ class FiUnamFS(fuse.Fuse):
                                   indice_ignorar: int = -1):
         """Busca un bloque continuo de clusters libres y devuelve el cluster inicial (o -1)."""
         # Mapa del disco: False = libre, True = ocupado
-        clusters_ocupados = [False] * TOTAL_CLUSTERS
+        clusters_ocupados = [False] * self.total_clusters
 
         # Los clusters 0 al 4 están reservados (Superbloque y Directorio)
-        for c in range(DATOS_INICIO):
+        for c in range(self.datos_inicio):
             clusters_ocupados[c] = True
 
         # Marcamos los clusters que ya pertenecen a otros archivos
         for arch in archivos:
             if arch["indice"] == indice_ignorar:
                 continue
-            clusters_usados = max(1, (arch["tamano"] + CLUSTER_SIZE - 1) // CLUSTER_SIZE)
-            fin = min(TOTAL_CLUSTERS, arch["cluster_ini"] + clusters_usados)
+            clusters_usados = max(1, (arch["tamano"] + self.cluster_size - 1) // self.cluster_size)
+            fin = min(self.total_clusters, arch["cluster_ini"] + clusters_usados)
             for c in range(arch["cluster_ini"], fin):
                 clusters_ocupados[c] = True
 
         # Buscamos N clusters libres seguidos en la zona de datos
         contador_libres = 0
-        for c in range(DATOS_INICIO, TOTAL_CLUSTERS):
+        for c in range(self.datos_inicio, self.total_clustersS):
             if not clusters_ocupados[c]:
                 contador_libres += 1
                 if contador_libres == clusters_necesarios:
@@ -271,7 +285,7 @@ class FiUnamFS(fuse.Fuse):
             if offset >= arch["tamano"]:
                 return b""
             size = min(size, arch["tamano"] - offset)
-            self.disco.seek((arch["cluster_ini"] * CLUSTER_SIZE) + offset)
+            self.disco.seek((arch["cluster_ini"] * self.cluster_size) + offset)
             return self.disco.read(size)
 
     def create(self, path: str, flags: int, mode: int):
@@ -289,7 +303,7 @@ class FiUnamFS(fuse.Fuse):
                 return -errno.EEXIST
 
             usados = {a["indice"] for a in archivos}
-            slot = next((i for i in range(MAX_ENTRADAS) if i not in usados), -1)
+            slot = next((i for i in range(self.max_entradas) if i not in usados), -1)
             cluster_ini = self.buscar_clusters_contiguos(archivos, 1)
             if slot == -1 or cluster_ini == -1:
                 return -errno.ENOSPC
@@ -308,8 +322,8 @@ class FiUnamFS(fuse.Fuse):
                 return -errno.ENOENT
 
             nuevo_tam = max(arch["tamano"], offset + len(body))
-            req_clusters = max(1, (nuevo_tam + CLUSTER_SIZE - 1) // CLUSTER_SIZE)
-            act_clusters = max(1, (arch["tamano"] + CLUSTER_SIZE - 1) // CLUSTER_SIZE)
+            req_clusters = max(1, (nuevo_tam + self.cluster_size - 1) // self.cluster_size)
+            act_clusters = max(1, (arch["tamano"] + self.cluster_size - 1) // self.cluster_size)
             cluster_ini = arch["cluster_ini"]
 
             if req_clusters > act_clusters:
@@ -317,13 +331,13 @@ class FiUnamFS(fuse.Fuse):
                 if nuevo_ini == -1:
                     return -errno.ENOSPC
                 if nuevo_ini != cluster_ini and arch["tamano"] > 0:
-                    self.disco.seek(cluster_ini * CLUSTER_SIZE)
+                    self.disco.seek(cluster_ini * self.cluster_size)
                     previo = self.disco.read(arch["tamano"])
-                    self.disco.seek(nuevo_ini * CLUSTER_SIZE)
+                    self.disco.seek(nuevo_ini * self.cluster_size)
                     self.disco.write(previo)
                 cluster_ini = nuevo_ini
 
-            self.disco.seek((cluster_ini * CLUSTER_SIZE) + offset)
+            self.disco.seek((cluster_ini * self.cluster_size) + offset)
             self.disco.write(body)
 
             ahora = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -340,7 +354,7 @@ class FiUnamFS(fuse.Fuse):
                 return -errno.ENOENT
 
             nombre_arch = arch["nombre"]
-            self.disco.seek((DIR_INICIO * CLUSTER_SIZE) + (arch["indice"] * ENTRADA_SIZE))
+            self.disco.seek((DIR_INICIO * self.cluster_size) + (arch["indice"] * ENTRADA_SIZE))
             self.disco.write(b"-" + b"#.............." + (b"\x00" * 48))
 
         # Afuera de self.mutex: se encola la tarea y se despierta al trabajador
