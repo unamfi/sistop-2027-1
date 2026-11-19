@@ -49,3 +49,4 @@
 
 ## Notas de implementación
 - Validación estricta del superbloque (FiUnamFS y versión 27-1) antes de escribir.
+- Enteros de 32 bits en formato little-endian (<I) y asignación contigua de clústeres.
