@@ -61,7 +61,7 @@ Para copiar hacia el disco buscamos el primer hueco donde quepa el archivo compl
 
 ## Hilos y sincronización
 
-El programa tiene dos hilos que viven todo el tiempo: la interfaz (el hilo principal, que muestra el menú) y el hilo del disco, que es el único que abre la imagen. Así nunca hay dos operaciones escribiendo en el directorio al mismo tiempo.
+El programa tiene dos hilos que viven todo el tiempo: la interfaz (el hilo principal, que muestra el menú) y el hilo del disco, que es el único que usa la imagen (el principal sólo la abre antes de lanzarlo, para avisar de una vez si no se puede escribir en ella). Así nunca hay dos operaciones escribiendo en el directorio al mismo tiempo.
 
 Se comunican como en el ejemplo de productores y consumidores de clase. La interfaz mete el pedido (la operación y sus datos) en la lista `pedidos` y hace `release()` sobre el semáforo `hay_pedido`. El hilo del disco está dormido en ese semáforo; cuando despierta saca el pedido, hace la operación y deja el resultado en la lista `respuestas`, y avisa con `hay_respuesta`. Mientras tanto la interfaz espera en `hay_respuesta` y luego imprime lo que le regresaron. Las dos listas están protegidas con el semáforo `mutex`. Si la operación falla (no existe el archivo, no hay espacio, etc.) el hilo del disco regresa el mensaje de error en vez de morirse, y la interfaz lo muestra igual que cualquier otra respuesta. Para salir, la interfaz manda un pedido `None`; el hilo del disco lo ve, cierra la imagen y termina, y el principal lo espera con `join()`.
 

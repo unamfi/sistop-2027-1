@@ -24,7 +24,7 @@ def lee_superbloque(ruta):
     with open(ruta, 'rb') as disco:
         datos = disco.read(52)
     # Si no es FiUnamFS 27-1 no tocamos nada, podríamos echar a perder el archivo
-    if datos[0:8] != b'FiUnamFS' or datos[10:14] != b'27-1':
+    if len(datos) < 52 or datos[0:8] != b'FiUnamFS' or datos[10:14] != b'27-1':
         print(f'{ruta} no es un FiUnamFS versión 27-1')
         sys.exit(1)
     etiqueta = datos[20:36].decode('ascii').rstrip('\x00 ')
@@ -169,8 +169,8 @@ def elimina(disco, nombre):
     escribe_entrada(disco, entrada['num'], entrada_vacia)
     return f'Se eliminó {nombre}'
 
-def atiende_disco(ruta):
-    with open(ruta, 'r+b') as disco:
+def atiende_disco(disco):
+    with disco:
         while True:
             hay_pedido.acquire()
             with mutex:
@@ -221,7 +221,13 @@ if len(sys.argv) != 2 or not os.path.isfile(sys.argv[1]):
     uso()
 etiqueta, tam_cluster, clusters_dir, clusters_total = lee_superbloque(sys.argv[1])
 print(f'Volumen: {etiqueta} ({clusters_total} clusters de {tam_cluster} bytes)')
-hilo_disco = threading.Thread(target=atiende_disco, args=[sys.argv[1]])
+# Se abre aquí y no en el hilo: si fallara allá, la interfaz se quedaría esperando una respuesta que nunca llega
+try:
+    imagen = open(sys.argv[1], 'r+b')
+except OSError as e:
+    print(f'No se puede abrir {sys.argv[1]} para escritura: {e}')
+    sys.exit(1)
+hilo_disco = threading.Thread(target=atiende_disco, args=[imagen])
 hilo_disco.start()
 try:
     menu()
