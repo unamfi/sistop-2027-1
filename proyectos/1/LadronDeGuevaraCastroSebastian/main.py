@@ -3,8 +3,8 @@
 Interfaz del proyecto FiUnamFS, Sistemas Operativos (sistop-2027-1)
 Sebastián Ladrón de Guevara Castro
 
-Menú de texto para listar archivos de una imagen FiUnamFS y copiarlos en las
-dos direcciones. Por ahora todo corre en un solo hilo, la interfaz llama
+Menú de texto para listar, copiar y eliminar archivos de una imagen
+FiUnamFS. Por ahora todo corre en un solo hilo, la interfaz llama
 directamente a los métodos de FiUnamFS.
 
 Se ejecuta con python3 main.py [imagen], si no se le pasa la imagen busca
@@ -101,11 +101,20 @@ class Interfaz:
         self.con_avance(self.fs.importar, origen, nombre)
         print(f'  Listo, se copió como "{nombre}"')
 
+    def eliminar(self):
+        entrada = self.elegir_archivo('eliminar')
+        if entrada is None:
+            return
+        if confirmar(f'  ¿Seguro que quieres eliminar "{entrada.nombre}"?'):
+            self.fs.eliminar(entrada.nombre)
+            print(f'  Se eliminó "{entrada.nombre}"')
+
     def menu(self):
         opciones = {
             '1': ('Listar los contenidos', self.mostrar_listado),
             '2': ('Copiar un archivo de FiUnamFS a la computadora', self.copiar_hacia_computadora),
             '3': ('Copiar un archivo de la computadora a FiUnamFS', self.copiar_hacia_fiunamfs),
+            '4': ('Eliminar un archivo de FiUnamFS', self.eliminar),
         }
         salir = str(len(opciones) + 1)
         while True:

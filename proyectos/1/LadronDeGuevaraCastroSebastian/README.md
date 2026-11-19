@@ -2,7 +2,7 @@
 
 Ladrón de Guevara Castro Sebastián ([`Sebastian82879`](https://github.com/Sebastian82879)), entrega individual.
 
-Es un programa para trabajar con imágenes del sistema de archivos `FiUnamFS` versión `27-1`. Por ahora lista el directorio y copia archivos de la imagen a la computadora y de la computadora a la imagen.
+Es un programa para trabajar con imágenes del sistema de archivos `FiUnamFS` versión `27-1`, con él se puede listar el directorio, copiar archivos de la imagen a la computadora y de la computadora a la imagen, también eliminarlos.
 
 ## Entorno y requisitos
 
@@ -29,7 +29,8 @@ Todo se hace desde un menú con números, para elegir un archivo se escribe su n
   1) Listar los contenidos
   2) Copiar un archivo de FiUnamFS a la computadora
   3) Copiar un archivo de la computadora a FiUnamFS
-  4) Salir
+  4) Eliminar un archivo de FiUnamFS
+  5) Salir
 Elige una opción: 1
 
     #  Nombre              Tamaño  Cluster  Creado               Modificado
@@ -63,9 +64,11 @@ Elige una opción: 3
   Listo, se copió como "nota.txt"
 ```
 
+Para eliminar se elige la opción 4, el número del archivo y se confirma con `s`.
+
 ## Pruebas con la imagen del profe
 
-Con `fiunamfs.img` probé lo que lleva el programa hasta ahora, siempre sobre una copia. El listado muestra los tres archivos con su tamaño, su cluster inicial y sus fechas. Copié los tres archivos a la computadora y se abren bien, el `README.org` se lee como texto y las dos imágenes se ven completas, además coinciden en tamaño con lo que dice el directorio. Después copié un archivo de texto hacia la imagen, el programa lo acomodó en el cluster 5 (el hueco libre que hay antes del `README.org`) y al sacarlo de nuevo quedó idéntico al original.
+Probé las cuatro operaciones con `fiunamfs.img`, siempre sobre una copia. El listado muestra los tres archivos con su tamaño, su cluster inicial y sus fechas. Copié los tres archivos a la computadora y se abren bien, el `README.org` se lee como texto y las dos imágenes se ven completas, además coinciden en tamaño con lo que dice el directorio. Después copié un archivo de texto hacia la imagen, el programa lo acomodó en el cluster 5 (el hueco libre que hay antes del `README.org`) y al sacarlo de nuevo quedó idéntico al original. Por último eliminé un archivo y revisé con `od` que su entrada quedara marcada como vacía igual que las demás entradas vacías del disco (`-` en el tipo y `##############` en el nombre), el listado ya no lo muestra y el espacio libre aumenta.
 
 ## Contenidos del disco
 
@@ -76,8 +79,6 @@ El volumen se llama `Disco de Gunnar` y trae tres archivos.
 `logo.png` (126,423 bytes) es el escudo de la Facultad de Ingeniería, una imagen PNG de 354 × 425 pixeles.
 
 `mensaje.jpg` (254,484 bytes) es una foto de 1440 × 1200 pixeles de una persona sosteniendo una hoja que dice "¡Muy bien hecho! Lograste recuperar la información del sistema de archivos FiUNAMFS. ¡Sigue adelante! :-)".
-
-Algo curioso es que el cluster 5, el primero del área de datos, está libre porque `README.org` empieza en el 6.
 
 ## Por qué una interfaz de texto y no FUSE
 
@@ -105,14 +106,32 @@ Como la asignación es contigua un archivo necesita clusters seguidos, para copi
 
 FiUnamFS no tiene un mapa de bits para saber qué clusters están libres, como dice la especificación toda la información de los archivos está en el directorio. Por eso para encontrar espacio reviso el directorio completo y calculo qué rango de clusters ocupa cada archivo, lo que no ocupe ninguno está libre.
 
-Todavía me falta eliminar archivos y separar el programa en dos hilos.
+Eliminar solo marca la entrada como vacía. Los datos se quedan en el disco igual que en otros sistemas de archivos, pero ese espacio ya queda libre para el siguiente archivo. Como aquí no hay ligas duras no hace falta llevar un contador de referencias como el de los inodos, en cuanto se borra la única entrada que apunta al archivo su espacio queda libre.
 
-## Decisiones y dudas
+Lo que sigue es separar el programa en dos hilos.
 
-La imagen del profe no sigue al pie de la letra la especificación en dos cosas. La primera es que las entradas vacías llevan `##############` en el nombre y no `#..............` como dice el planteamiento, mi programa reconoce las dos formas. La segunda es que los nombres se rellenan con espacios y terminan con un byte nulo (por ejemplo `README.org    \0`), al leer quito los dos y al escribir relleno igual que la imagen, así lo que escribe mi programa se ve igual que lo que ya traía el disco.
+## Decisiones que tomé
 
 Los nombres solo pueden llevar caracteres ASCII imprimibles, además no dejo usar `/` porque al copiar el archivo de regreso a la computadora se confundiría con una carpeta, tampoco dejo que empiecen o terminen con espacios porque se perderían al leerlos.
 
 Al copiar un archivo hacia `FiUnamFS` le pongo como fecha de creación y de modificación la hora actual, igual que cuando se copia un archivo con `cp`.
 
 Cuando hay espacio libre suficiente pero repartido en varios huecos el programa lo dice con un mensaje distinto, para que se entienda por qué no se pudo copiar aunque el listado diga que sí hay espacio.
+
+## Complicaciones que tuve
+
+Cuando empecé el proyecto la imagen de ejemplo todavía no estaba disponible, el planteamiento decía que aún no la publicaban. Para no esperarme armé una imagen de prueba siguiendo la especificación y con ella probé todo, ya que tuve la del profe repetí las pruebas con la suya.
+
+Con la imagen del profe me di cuenta de que no sigue al pie de la letra la especificación en dos cosas. La primera es que las entradas vacías llevan `##############` en el nombre y no `#..............` como dice el planteamiento, mi programa reconoce las dos formas, pero al eliminar escribe como viene en la imagen. La segunda es que los nombres se rellenan con espacios y terminan con un byte nulo (por ejemplo `README.org    \0`), al leer quito los dos y al escribir relleno igual que la imagen, así lo que escribe mi programa se ve igual que lo que ya traía el disco.
+
+La copia de la imagen que estaba usando venía sin permiso de escritura, con eso me di cuenta de que el programa no la podía abrir porque intentaba abrirla para leer y escribir de una vez. Lo cambié para que si no tiene permiso la abra solo para lectura, así todavía se puede listar y copiar hacia la computadora, las operaciones que escriben avisan en lugar de tronar.
+
+Algo que también tuve que corregir fue el propio README. Al principio me enfoqué en que el código funcionara y lo descuidé un poco, en las primeras etapas solo explicaba cómo usar el programa y cómo funciona, pero no contaba las complicaciones ni las dudas que fueron saliendo. Desde esta etapa lo voy mejorando junto con el código, para que se entienda el proceso y no solo el resultado.
+
+## Dudas resueltas
+
+La primera vez que corrí el programa no entendía de dónde salía el "Disco de Gunnar" que aparece arriba del menú. Revisando la especificación vi que los bytes 20 a 35 del superbloque son la etiqueta del volumen, el nombre que el profe le puso al disco, el programa solo la lee y la muestra.
+
+Al listar el disco me llamó la atención que `README.org` empieza en el cluster 6 y no en el 5, que es el primero del área de datos. Revisé los bytes del directorio y de verdad dice 6, el cluster 5 simplemente quedó libre. Cuando copié un archivo pequeño el primer ajuste lo acomodó justo ahí, lo que me sirvió para comprobar que la búsqueda de huecos funciona.
+
+La especificación dice que la imagen no tiene tabla de particiones y que hospeda directamente un volumen. Con la clase de sistemas de archivos quedó clara la diferencia, una partición es solo un corte del dispositivo y un volumen es lo que ya tiene formato de un sistema de archivos, por eso aquí el superbloque está desde el byte 0 de la imagen sin nada antes.

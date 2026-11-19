@@ -23,11 +23,14 @@ CLUSTER_DIRECTORIO = 1
 TAM_ENTRADA = 64
 LARGO_NOMBRE = 15
 TIPO_ARCHIVO = b'F'
+TIPO_VACIO = b'-'
 # La especificación dice que las entradas vacías llevan '#..............' en
 # el nombre, pero la imagen del profe usa '##############', se aceptan las dos
+# y al eliminar se escribe como en la imagen
 NOMBRE_VACIO = '#' * (LARGO_NOMBRE - 1)
 NOMBRE_VACIO_ESPECIFICACION = '#' + '.' * (LARGO_NOMBRE - 1)
 NOMBRES_RESERVADOS = (NOMBRE_VACIO, NOMBRE_VACIO_ESPECIFICACION)
+FECHA_VACIA = '0' * 14
 FORMATO_FECHA = '%Y%m%d%H%M%S'
 
 # Una entrada completa del directorio. Los enteros van en little endian (<)
@@ -276,3 +279,15 @@ class FiUnamFS:
 
         ahora = datetime.now().strftime(FORMATO_FECHA)
         self._escribir_entrada(indice, TIPO_ARCHIVO, nombre, copiado, cluster, ahora, ahora)
+
+    def eliminar(self, nombre):
+        """
+        Marca la entrada como vacía. Igual que en otros sistemas de archivos
+        los datos no se borran, el espacio solo queda disponible para otro.
+        """
+        self._revisar_escritura()
+        entrada = self.buscar(nombre)
+        if entrada is None:
+            raise ErrorFiUnamFS(f'No existe "{nombre}" en FiUnamFS')
+        self._escribir_entrada(entrada.indice, TIPO_VACIO, NOMBRE_VACIO, 0, 0,
+                               FECHA_VACIA, FECHA_VACIA)
