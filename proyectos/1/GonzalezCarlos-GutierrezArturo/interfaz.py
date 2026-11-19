@@ -2,9 +2,9 @@ from pathlib import Path
 from fiunamfs import ErrorFiUnamFS
 
 
-def mostrar_archivos(sistema):
+def mostrar_archivos(solicitar_operacion):
     """Muestra los archivos del directorio FiUnamFS."""
-    archivos = sistema.listar_archivos()
+    archivos = solicitar_operacion("listar_archivos")
 
     if not archivos:
         print("El directorio de FiUnamFS está vacío.")
@@ -24,9 +24,9 @@ def mostrar_archivos(sistema):
     return archivos
 
 
-def extraer_archivo(sistema):
+def extraer_archivo(solicitar_operacion):
     """Solicita los datos necesarios para extraer un archivo."""
-    archivos = mostrar_archivos(sistema)
+    archivos = mostrar_archivos(solicitar_operacion)
     if not archivos:
         return
 
@@ -43,13 +43,13 @@ def extraer_archivo(sistema):
         return
 
     try:
-        destino = sistema.extraer_archivo(nombre, Path(ruta))
+        destino = solicitar_operacion("extraer_archivo", nombre, Path(ruta))
         print(f"El archivo extraído en: {destino.resolve()}")
     except (ErrorFiUnamFS, OSError) as error:
         print(f"No se pudo extraer el archivo: {error}")
 
 
-def copiar_archivo_local(sistema):
+def copiar_archivo_local(solicitar_operacion):
     """Solicita un archivo local y lo agrega a FiUnamFS."""
     ruta_origen = input(
         "Ruta del archivo de tu equipo (puedes pegarla aquí): "
@@ -65,7 +65,9 @@ def copiar_archivo_local(sistema):
         nombre_destino = None
 
     try:
-        archivo = sistema.copiar_archivo(ruta_origen, nombre_destino)
+        archivo = solicitar_operacion(
+            "copiar_archivo", ruta_origen, nombre_destino
+        )
         print(
             f"Copiado '{archivo.nombre}': {archivo.tamano} bytes, "
             f"cluster inicial {archivo.cluster_inicial}."
@@ -74,9 +76,9 @@ def copiar_archivo_local(sistema):
         print(f"No se pudo copiar el archivo: {error}")
 
 
-def eliminar_archivo(sistema):
-    """Pide confirmación y elimina una entrada del directorio."""
-    archivos = mostrar_archivos(sistema)
+def eliminar_archivo(solicitar_operacion):
+    """Elimina una entrada del directorio después de validar su nombre."""
+    archivos = mostrar_archivos(solicitar_operacion)
     if not archivos:
         return
 
@@ -96,7 +98,7 @@ def eliminar_archivo(sistema):
         return
 
     try:
-        sistema.eliminar_archivo(nombre)
+        solicitar_operacion("eliminar_archivo", nombre)
         print(
             f"Se eliminó '{nombre}' exitosamente "
             
@@ -105,7 +107,7 @@ def eliminar_archivo(sistema):
         print(f"No se pudo eliminar el archivo: {error}")
 
 
-def iniciar(sistema):
+def iniciar(solicitar_operacion):
     """Muestra el menú de operaciones disponibles."""
     while True:
         print("\n Administrador FiUnamFS ")
@@ -121,12 +123,12 @@ def iniciar(sistema):
             print("Cerrando programa...")
             break
         elif opcion == "1":
-            mostrar_archivos(sistema)
+            mostrar_archivos(solicitar_operacion)
         elif opcion == "2":
-            extraer_archivo(sistema)
+            extraer_archivo(solicitar_operacion)
         elif opcion == "3":
-            copiar_archivo_local(sistema)
+            copiar_archivo_local(solicitar_operacion)
         elif opcion == "4":
-            eliminar_archivo(sistema)
+            eliminar_archivo(solicitar_operacion)
         else:
             print("Opción no válida. Elige 1, 2, 3, 4 o 0.")
