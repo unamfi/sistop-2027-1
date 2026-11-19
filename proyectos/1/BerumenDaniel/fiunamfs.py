@@ -291,6 +291,25 @@ def copiar_a_fiunamfs(ruta_imagen, superbloque, ruta_origen):
     return False
 
 
+def eliminar_archivo(ruta_imagen, superbloque, nombre):
+    entrada = buscar_archivo(ruta_imagen, superbloque, nombre)
+    if entrada == None:
+        print("Error: no existe el archivo", nombre)
+        return False
+
+    # Basta con marcar la entrada como vacía: sus clusters quedan libres
+    # porque ya ninguna entrada los usa
+    posicion = superbloque['tamano_cluster'] + entrada['numero_entrada'] * TAMANO_ENTRADA
+
+    archivo = open(ruta_imagen, 'r+b')
+    archivo.seek(posicion)
+    archivo.write(b'-')
+    archivo.write(b'#..............')
+    archivo.close()
+
+    return True
+
+
 if __name__ == "__main__":
     ruta = input("Ruta de la imagen: ")
     sb = leer_superbloque(ruta)
@@ -307,6 +326,7 @@ if __name__ == "__main__":
             print("1. Listar")
             print("2. Copiar de FiUnamFS a tu equipo")
             print("3. Copiar de tu equipo a FiUnamFS")
+            print("4. Eliminar un archivo")
             print("0. Salir")
             opcion = input("Opción: ")
 
@@ -320,5 +340,9 @@ if __name__ == "__main__":
             elif opcion == "3":
                 origen = input("Archivo de tu equipo: ")
                 copiar_a_fiunamfs(ruta, sb, origen)
+            elif opcion == "4":
+                nombre = input("Archivo a eliminar: ")
+                if eliminar_archivo(ruta, sb, nombre):
+                    print("Se eliminó", nombre)
             elif opcion != "0":
                 print("Opción no válida")
