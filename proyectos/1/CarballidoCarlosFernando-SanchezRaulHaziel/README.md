@@ -230,3 +230,62 @@ Durante la prueba:
 - Ambos hilos finalizaron correctamente al cerrar el programa.
 
 Las operaciones sobre la imagen se ejecutaron bajo protección del candado, evitando accesos simultáneos durante su ejecución.
+
+## Integrantes y entrega final
+
+**Universidad Nacional Autónoma de México**  
+**Facultad de Ingeniería — Sistemas Operativos**
+
+**Integrantes:**
+- Carlos Fernando Carballido Carrillo.
+- Raúl Haziel Sánchez Soperanes.
+
+### Resumen del proyecto
+
+Desarrollamos un administrador del sistema de archivos FiUnamFS utilizando Python 3.
+
+El sistema permite listar archivos, extraerlos hacia el equipo, incorporar nuevos archivos y eliminarlos del directorio. También cuenta con una interfaz interactiva de texto.
+
+Para el manejo concurrente, implementamos dos hilos trabajadores que reciben tareas mediante una cola compartida. El acceso a la imagen se protege con un candado `RLock`, evitando que los hilos realicen operaciones simultáneas sobre el volumen.
+
+### Archivos principales
+
+- `preparar_imagen.py`: creación y validación de imágenes de prueba.
+- `listar_directorio.py`: lectura y listado del directorio.
+- `extraer_archivo.py`: extracción de archivos.
+- `agregar_archivo.py`: incorporación de archivos.
+- `eliminar_archivo.py`: eliminación de entradas.
+- `fiunamfs.py`: interfaz interactiva y ejecución multihilos.
+- `pruebas_finales.py`: pruebas automáticas de funcionamiento e integridad.
+
+### Ejecución del sistema
+
+Desde la carpeta del equipo, preparar una copia de la imagen de referencia:
+
+```bash
+cp ../fiunamfs.img fiunamfs_trabajo.img
+python3 fiunamfs.py fiunamfs_trabajo.img
+```
+
+### Pruebas automáticas
+
+Para comprobar las funcionalidades principales:
+
+```bash
+python3 pruebas_finales.py
+```
+
+El programa utiliza copias temporales del volumen y verifica las operaciones de lectura, incorporación, extracción y eliminación, el rechazo de operaciones inválidas, la sincronización de los hilos y la conservación de los archivos originales.
+
+### Resultados de las pruebas manuales
+
+Durante el desarrollo comprobamos que:
+
+- `README.org`, `logo.png` y `mensaje.jpg` conservaron exactamente su contenido.
+- Los archivos incorporados pudieron extraerse sin diferencias respecto de sus originales.
+- Se reutilizaron clústeres liberados por la eliminación de archivos.
+- Se rechazaron nombres duplicados y eliminaciones de archivos inexistentes.
+- Los dos hilos ejecutaron operaciones sincronizadas.
+- El programa finalizó correctamente ambos hilos al salir.
+
+El historial de Git registra contribuciones individuales de los dos integrantes y la entrega final conjunta.
