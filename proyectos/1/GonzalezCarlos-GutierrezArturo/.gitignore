@@ -1,0 +1,11 @@
+# Archivos temporales de Python
+__pycache__/
+*.py[cod]
+
+# Entornos virtuales
+.venv/
+venv/
+
+# Archivos de prueba de FiUnamFS
+*.img
+extraidos/
