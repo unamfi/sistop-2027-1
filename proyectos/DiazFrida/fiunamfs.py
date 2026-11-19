@@ -350,3 +350,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+# Sincronizacion: Lock, Condition y Queue coordinan el acceso concurrente a la imagen.
