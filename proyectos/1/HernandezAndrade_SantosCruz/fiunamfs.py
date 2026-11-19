@@ -87,6 +87,8 @@ import struct
 import threading
 from datetime import datetime
 import fuse
+from collections import deque
+
 
 fuse.fuse_python_api = (0, 2)
 
@@ -110,38 +112,43 @@ class FiUnamFS(fuse.Fuse):
         if sb[0:8] != b"FiUnamFS" or sb[10:14] != b"27-1":
             raise ValueError("Imagen inválida: debe ser FiUnamFS versión 27-1.")
 
-        # Mecanismos de sincronización entre hilos
-        self.lock = threading.Lock()
-        self.condicion = threading.Condition(self.lock)
-        self.eventos = []
+        # Mecanismos de sincronización (Patrón Jefe-Trabajador con semáforos)
+        self.mutex = threading.Semaphore(1)       # Protege acceso a la cola y al archivo .img
+        self.peticiones = threading.Semaphore(0)  # Cuenta operaciones pendientes por bajar a disco
+        self.cola_cambios = deque()               # Equivalente a la 'cinta' de solicitudes
         self.activo = True
-        self.hilo_sync = threading.Thread(target=self._worker_sync, daemon=True)
+        self.hilo_trabajador = threading.Thread(target=self._trabajador_disco, daemon=True)
+
 
     def fsinit(self):
-        self.hilo_sync.start()
+        self.hilo_trabajador.start()
 
     def fsdestroy(self):
-        with self.condicion:
+        with self.mutex:
             self.activo = False
-            self.condicion.notify_all()
-        self.hilo_sync.join(timeout=2)
+        self.peticiones.release()  # Despierta al trabajador para que cierre limpio
+        self.hilo_trabajador.join(timeout=2)
         self.disco.close()
 
-    def _worker_sync(self):
-        """Hilo concurrente que espera notificaciones y vacía los cambios a disco."""
+    def _encolar_operacion(self, mensaje: str):
+        """Actúa como el 'jefe': mete la operación a la cola y libera un permiso."""
+        with self.mutex:
+            self.cola_cambios.append(mensaje)
+        self.peticiones.release()
+
+    def _trabajador_disco(self):
+        """Hilo trabajador: espera peticiones en el semáforo y sincroniza el disco."""
         while True:
-            with self.condicion:
-                while not self.eventos and self.activo:
-                    self.condicion.wait()
-                if not self.activo and not self.eventos:
+            self.peticiones.acquire()
+
+            with self.mutex:
+                if not self.activo and not self.cola_cambios:
                     break
-                mensajes = list(self.eventos)
-                self.eventos.clear()
+                tarea = self.cola_cambios.popleft()
                 self.disco.flush()
                 os.fsync(self.disco.fileno())
 
-            for msg in mensajes:
-                print(f"[SYNC] {msg}")
+            print(f"[Trabajador Disco] Sincronizado -> {tarea}")
 
     # ------------------------------------------------------------------
     # Operaciones sobre directorio y asignación contigua
@@ -200,6 +207,10 @@ class FiUnamFS(fuse.Fuse):
     # Interfaz FUSE (ls, cp, rm)
     # ------------------------------------------------------------------
 
+    # ------------------------------------------------------------------
+    # Interfaz FUSE (ls, cp, rm)
+    # ------------------------------------------------------------------
+
     def getattr(self, path: str):
         st = fuse.Stat()
         if path == "/":
@@ -207,7 +218,8 @@ class FiUnamFS(fuse.Fuse):
             st.st_nlink = 2
             return st
 
-        with self.condicion:
+        # Solo cambia self.condicion -> self.mutex
+        with self.mutex:
             arch = next((a for a in self._leer_directorio() if a["nombre"] == path[1:]), None)
         if not arch:
             return -errno.ENOENT
@@ -226,7 +238,7 @@ class FiUnamFS(fuse.Fuse):
     def readdir(self, path: str, offset: int):
         if path != "/":
             return -errno.ENOENT
-        with self.condicion:
+        with self.mutex:
             archivos = self._leer_directorio()
         yield fuse.Direntry(".")
         yield fuse.Direntry("..")
@@ -234,7 +246,7 @@ class FiUnamFS(fuse.Fuse):
             yield fuse.Direntry(a["nombre"])
 
     def read(self, path: str, size: int, offset: int) -> bytes:
-        with self.condicion:
+        with self.mutex:
             arch = next((a for a in self._leer_directorio() if a["nombre"] == path[1:]), None)
             if not arch:
                 return -errno.ENOENT
@@ -253,7 +265,7 @@ class FiUnamFS(fuse.Fuse):
         except UnicodeEncodeError:
             return -errno.EINVAL
 
-        with self.condicion:
+        with self.mutex:
             archivos = self._leer_directorio()
             if any(a["nombre"] == nombre for a in archivos):
                 return -errno.EEXIST
@@ -266,12 +278,12 @@ class FiUnamFS(fuse.Fuse):
 
             ahora = datetime.now().strftime("%Y%m%d%H%M%S")
             self._escribir_ficha(slot, nombre, 0, cluster_ini, ahora, ahora)
-            self.eventos.append(f"Creado: {nombre}")
-            self.condicion.notify()
+
+        self._encolar_operacion(f"Creado: {nombre}")
         return 0
 
     def write(self, path: str, body: bytes, offset: int) -> int:
-        with self.condicion:
+        with self.mutex:
             archivos = self._leer_directorio()
             arch = next((a for a in archivos if a["nombre"] == path[1:]), None)
             if not arch:
@@ -282,7 +294,6 @@ class FiUnamFS(fuse.Fuse):
             act_clusters = max(1, (arch["tamano"] + CLUSTER_SIZE - 1) // CLUSTER_SIZE)
             cluster_ini = arch["cluster_ini"]
 
-            # Si el archivo crece en clusters, reubicar en un bloque contiguo válido
             if req_clusters > act_clusters:
                 nuevo_ini = self._buscar_contiguo(archivos, req_clusters, arch["indice"])
                 if nuevo_ini == -1:
@@ -299,22 +310,24 @@ class FiUnamFS(fuse.Fuse):
 
             ahora = datetime.now().strftime("%Y%m%d%H%M%S")
             self._escribir_ficha(arch["indice"], arch["nombre"], nuevo_tam, cluster_ini, arch["creacion"], ahora)
-            self.eventos.append(f"Escrito: {arch['nombre']} ({nuevo_tam} B)")
-            self.condicion.notify()
+            nombre_arch = arch["nombre"]
+
+        self._encolar_operacion(f"Escrito: {nombre_arch} ({nuevo_tam} B)")
         return len(body)
 
     def unlink(self, path: str):
-        with self.condicion:
+        with self.mutex:
             arch = next((a for a in self._leer_directorio() if a["nombre"] == path[1:]), None)
             if not arch:
                 return -errno.ENOENT
 
+            nombre_arch = arch["nombre"]
             self.disco.seek((DIR_INICIO * CLUSTER_SIZE) + (arch["indice"] * ENTRADA_SIZE))
             self.disco.write(b"-" + b"#.............." + (b"\x00" * 48))
-            self.eventos.append(f"Eliminado: {arch['nombre']}")
-            self.condicion.notify()
-        return 0
 
+        # Afuera de self.mutex: se encola la tarea y se despierta al trabajador
+        self._encolar_operacion(f"Eliminado: {nombre_arch}")
+        return 0
 
 if __name__ == "__main__":
     server = FiUnamFS(version="%prog " + fuse.__version__, usage=fuse.Fuse.fusage)
