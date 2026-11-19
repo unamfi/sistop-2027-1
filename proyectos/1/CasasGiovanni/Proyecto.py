@@ -4,6 +4,7 @@ import argparse
 import os
 import struct
 import sys
+import threading   
 from datetime import datetime
 
 NOMBRE_FS = b"FiUnamFS"
@@ -11,6 +12,8 @@ VERSION_FS = b"27-1"
 TAM_ENTRADA = 64
 TIPO_ARCHIVO = b"F"     
 TAM_BLOQUE = 2048   #Bytes que se copian en cada paso al extraer y al agregar
+TAM_COLA = 8        
+LIBRE = b"#"        #marca que se pone al inicio de una entrada libre 
 MAX_NOMBRE = 14   #Maximo de letras que puede tener el nombre de un archivo en el FiUnamFS
 
 
@@ -70,6 +73,90 @@ def armar_entrada(nombre, tamano, cluster, fecha):  #Arma los 64 bytes de una en
     return datos
 
 
+
+
+class Canal:  #Esta clase junta todo lo que comparten los dos hilos, lista en donde estaran los pedazos , protege la lista 
+    def __init__(self):
+        self.buffer = []  
+        self.espacios = threading.Semaphore(TAM_COLA)  
+        self.elementos = threading.Semaphore(0)  
+        self.mutex = threading.Semaphore(1)  
+        self.cancelar = threading.Event()  
+        self.errores = []  
+
+
+def anadir_elemento(canal, elemento):  #El hilo lector deja un elemento en el buffer, pide un lugar libre , si no hay eerores entra , agrega elemento sale y notifica
+    while True:
+        if canal.espacios.acquire(timeout=0.1):  
+            break
+        if canal.cancelar.is_set():  
+            return False
+    canal.mutex.acquire()  
+    canal.buffer.append(elemento)
+    canal.mutex.release()  
+    canal.elementos.release()  
+    return True
+
+
+def sacar_elemento(canal):  #El hilo escritor toma un elemento del buffer, pide el pedazo listo, entra , toma el pedazo mas viejo , sale y avisa al hilo lecyqor que hay un lugar libre
+    while True:
+        if canal.elementos.acquire(timeout=0.1):  
+            break
+        if canal.cancelar.is_set():  
+            return False, None
+    canal.mutex.acquire()  
+    elemento = canal.buffer.pop(0)  
+    canal.mutex.release()  
+    canal.espacios.release()  
+    return True, elemento
+
+
+def leer(fuente, total, canal, mensaje_error):  #Es lo que hace el hilo lector, primer ve cuantos bytes faltan por leer , copia tam de bloque, ve si hay mas datos por leer , manda pedazo al hilo escritor y notifica que no hay nada mas por leer
+    restante = total  
+    try:
+        while restante > 0 and not canal.cancelar.is_set():
+            cantidad = min(TAM_BLOQUE, restante) 
+            datos = fuente.read(cantidad)
+            if not datos: 
+                raise ErrorFiUnamFS(mensaje_error)
+            anadir_elemento(canal, datos)  
+            restante = restante - len(datos)
+    except Exception as error:  #Si algo falla, se guarda el error y se avisa al otro hilo
+        canal.errores.append(error)
+        canal.cancelar.set()
+    finally:
+        if not canal.cancelar.is_set():  
+            anadir_elemento(canal, None)
+
+
+def escribir(destino, canal):  #Es lo que hace el hilo escritor , mientras haya datos este los obtiene . Despues si hay fallo termina , si no espera norificacion de hilo lector para decir que no hay nada mas y los escribe 
+    try:
+        while True:
+            hay, datos = sacar_elemento(canal)
+            if not hay: 
+                break
+            if datos is None:  #None significa que el hilo lector ya termino
+                break
+            destino.write(datos)
+    except Exception as error:  
+        canal.errores.append(error)
+        canal.cancelar.set()
+
+
+def copiar_datos(fuente, destino, total, mensaje_error):  #Copia el total bytes de fuente a destino usando 2 hilos
+    canal = Canal()  #Lo que comparten los dos hilos
+
+    hilo_lector = threading.Thread(target=leer, args=(fuente, total, canal, mensaje_error))
+    hilo_escritor = threading.Thread(target=escribir, args=(destino, canal))
+    hilo_lector.start()  
+    hilo_escritor.start()
+    hilo_lector.join()    
+    hilo_escritor.join()
+
+    if len(canal.errores) > 0:  #Si algun hilo fallo, el error se vuelve a lanzar aqui
+        raise canal.errores[0]
+
+
 class FiUnamFS: #Se crea clase y sus atributos/ 
     def __init__(self, ruta_disco, escritura):
         if escritura:  #Solo se abre para escribir si la operacion va a modificar el disco
@@ -88,7 +175,7 @@ class FiUnamFS: #Se crea clase y sus atributos/
         self.archivo.close()
 
 
-    def leer_superbloque(self): #En esta funcion compara para ver si pertence al disco y nos da el volumen, recorriendo todo el disco y comparando se los archivos pertenecen a Fiunam
+    def leer_superbloque(self): #En esta funcion compara para ver si pertence al disco y nos da el volumen, recorriendo solo los primeros 64 bytes
         self.archivo.seek(0) 
         sb = self.archivo.read(64)  
         if len(sb) < 64 or sb[0:8] != NOMBRE_FS:  #Comparacion si archivo es muy corto o bytes [0,8] no dicen Fiunam
@@ -135,16 +222,10 @@ class FiUnamFS: #Se crea clase y sus atributos/
     def extraer(self, nombre, destino): #Copia un archivo del disco a la computadora
         entrada = self.buscar(nombre)
         self.archivo.seek(entrada.cluster * self.tam_cluster) #Va al cluster donde empieza el archivo
-        restante = entrada.tamano #Bytes que faltan por copiar
         salida = open(destino, "wb")
         try:
-            while restante > 0:
-                cantidad = min(TAM_BLOQUE, restante) #Copia de TAM_BLOQUE en TAM_BLOQUE
-                datos = self.archivo.read(cantidad)
-                if not datos: #Si el disco se acaba antes de tiempo, evita un ciclo infinito
-                    raise ErrorFiUnamFS("El archivo '%s' no esta completo  en el disco" % nombre)
-                salida.write(datos)
-                restante = restante - len(datos)
+            # el hilo lector lee del disco y el hilo escritor escribe en la computadora
+            copiar_datos(self.archivo, salida, entrada.tamano, "El archivo '%s' no esta completo  en el disco" % nombre)
         finally:
             salida.close()  #Se cierra el archivo de salida aunque haya error
         return entrada.tamano
@@ -200,12 +281,8 @@ class FiUnamFS: #Se crea clase y sus atributos/
         # si algo falla a la mitad, el directorio no apunta a datos incompletos.
         origen_archivo = open(origen, "rb")
         try:
-            self.archivo.seek(cluster * self.tam_cluster) #Va al cluster donde se va a guardar
-            while True:
-                datos = origen_archivo.read(TAM_BLOQUE) #Copia de TAM_BLOQUE en TAM_BLOQUE
-                if not datos:  #Ya no hay mas que copiar
-                    break
-                self.archivo.write(datos)
+            self.archivo.seek(cluster * self.tam_cluster) #Va al cluster donde se va a guardar el hilo lector lee del archivo de la computadora y el hilo escritor escribe en el disco
+            copiar_datos(origen_archivo, self.archivo, tamano, "El archivo '%s' no esta completo" % origen)
         finally:
             origen_archivo.close()  #Se cierra el archivo de origen aunque haya error
         self.archivo.flush()
@@ -213,6 +290,12 @@ class FiUnamFS: #Se crea clase y sus atributos/
         fecha = ahora()
         self.escribir_entrada(indice, armar_entrada(nombre, tamano, cluster, fecha))
         return tamano
+
+    def eliminar(self, nombre): # elimina un archivo,libera su entrada del directorio, si no existe lanza error
+        entrada = self.buscar(nombre)  
+        libre = LIBRE + b"\0" * (TAM_ENTRADA - 1) 
+        self.escribir_entrada(entrada.indice, libre)
+        return entrada.tamano
 
 def crear_parser(): #"Es donde podemos decir que hacer desde cmd , es decir:leer, extraer, etc"
     p = argparse.ArgumentParser(description="Manejo de un disco FiUnamFS 27-1") #Se crea p , que sirve para leer el disco
@@ -228,6 +311,9 @@ def crear_parser(): #"Es donde podemos decir que hacer desde cmd , es decir:leer
     s = sub.add_parser("agregar", help="copia un archivo de su computadora al disco")
     s.add_argument("origen", help="archivo de su computadora que se va a copiar")
     s.add_argument("-n", "--nombre", help="nombre dentro del FiUnamFS (maximo 14 caracteres)")
+
+    s = sub.add_parser("eliminar", help="elimina un archivo del disco")
+    s.add_argument("nombre", help="nombre del archivo dentro del FiUnamFS")
     return p
 
 
@@ -237,12 +323,13 @@ def main():
     print(" python fiunamfs.py <nombre del disco> listar")
     print(" python fiunamfs.py <nombre del disco> extraer <nombre del archivo con su extension>")
     print(" python fiunamfs.py <nombre del disco> agregar <nombre de archivo con su extension> ")
+    print(" python fiunamfs.py <nombre del disco> eliminar <nombre del archivo con su extension>")
     print(" ********************************************************************************************")
     args = crear_parser().parse_args() # se llama a funcion Recibe que seleccion se quiere hacer y lo guarda
     fs = None  #Todavia no hay disco abierto   *fs es nuestro objeto de clase FiUnamFs
     try:
         escritura = False  #Por omision el disco se abre solo para leer
-        if args.comando == "agregar":  #Agregar es la unica operacion que modifica el disco
+        if args.comando == "agregar" or args.comando == "eliminar":  #Agregar y eliminar son las operaciones que modifican el disco
             escritura = True
         fs = FiUnamFS(args.disco, escritura) #Compara que si sea disco FiUnam
         if args.comando == "listar": #Una vez seleccionado listar muestra lo siguiente 
@@ -264,6 +351,9 @@ def main():
         elif args.comando == "agregar": #Se elige agregar: copia de la computadora al disco
             total = fs.agregar(args.origen, args.nombre)
             print("Se copiaron %d bytes de '%s' al diredctorio FiUnamFS" % (total, args.origen))
+        elif args.comando == "eliminar": #se elige eliminar: libera la entrada del archivo
+            total = fs.eliminar(args.nombre)
+            print("Se elimino '%s' del directorio FiUnamFS (%d bytes liberados)" % (args.nombre, total))
     except (ErrorFiUnamFS, OSError) as error:  #Si no es valido , salta el mensaje de error
         print("Error: %s" % error, file=sys.stderr)
         sys.exit(1)
