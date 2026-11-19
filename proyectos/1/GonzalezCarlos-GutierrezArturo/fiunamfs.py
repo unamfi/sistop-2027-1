@@ -16,6 +16,7 @@ class ErrorFiUnamFS(Exception):
 
 @dataclass
 class Archivo:
+    indice: int
     nombre: str
     tamano: int
     cluster_inicial: int
@@ -123,6 +124,7 @@ class SistemaFiUnamFS:
 
             archivos.append(
                 Archivo(
+                    indice=numero_entrada,
                     nombre=nombre,
                     tamano=tamano,
                     cluster_inicial=cluster_inicial,
@@ -279,12 +281,40 @@ class SistemaFiUnamFS:
             imagen.write(entrada)
 
         return Archivo(
+            indice=indice_libre,
             nombre=nombre_destino,
             tamano=tamano,
             cluster_inicial=cluster_inicial,
             fecha_creacion=ahora.decode("ascii"),
             fecha_modificacion=ahora.decode("ascii"),
         )
+
+    def eliminar_archivo(self, nombre):
+        """Marca como libre la entrada del archivo indicado."""
+        archivo_encontrado = next(
+            (archivo for archivo in self.listar_archivos()
+             if archivo.nombre == nombre),
+            None,
+        )
+
+        if archivo_encontrado is None:
+            raise ErrorFiUnamFS(
+                f"No existe '{nombre}' en el directorio de FiUnamFS."
+            )
+
+        entrada_vacia = bytearray(TAM_ENTRADA)
+        entrada_vacia[0:1] = b"-"
+        entrada_vacia[1:16] = b"#" + b"." * 14
+
+        posicion_entrada = (
+            self.inicio_directorio + archivo_encontrado.indice * TAM_ENTRADA
+        )
+
+        with self.ruta_imagen.open("r+b") as imagen:
+            imagen.seek(posicion_entrada)
+            imagen.write(entrada_vacia)
+
+        return archivo_encontrado
 
     def _buscar_entrada_libre(self):
         with self.ruta_imagen.open("rb") as imagen:

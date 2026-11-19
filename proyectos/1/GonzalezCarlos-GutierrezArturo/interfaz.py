@@ -74,6 +74,37 @@ def copiar_archivo_local(sistema):
         print(f"No se pudo copiar el archivo: {error}")
 
 
+def eliminar_archivo(sistema):
+    """Pide confirmación y elimina una entrada del directorio."""
+    archivos = mostrar_archivos(sistema)
+    if not archivos:
+        return
+
+    nombre = input(
+        "Nombre exacto del archivo que quieres eliminar: "
+    ).strip()
+    if not nombre:
+        print("Operación cancelada.")
+        return
+
+    archivo_encontrado = next(
+        (archivo for archivo in archivos if archivo.nombre == nombre),
+        None,
+    )
+    if archivo_encontrado is None:
+        print(f"No existe '{nombre}' en FiUnamFS.")
+        return
+
+    try:
+        sistema.eliminar_archivo(nombre)
+        print(
+            f"Se eliminó '{nombre}' exitosamente "
+            
+        )
+    except (ErrorFiUnamFS, OSError) as error:
+        print(f"No se pudo eliminar el archivo: {error}")
+
+
 def iniciar(sistema):
     """Muestra el menú de operaciones disponibles."""
     while True:
@@ -81,6 +112,7 @@ def iniciar(sistema):
         print("1. Listar archivos de la imagen")
         print("2. Copiar un archivo de la imagen a mi equipo")
         print("3. Copiar un archivo de mi equipo a FiUnamFS")
+        print("4. Eliminar un archivo de FiUnamFS")
         print("0. Salir")
 
         opcion = input("Elige una opción: ").strip()
@@ -94,5 +126,7 @@ def iniciar(sistema):
             extraer_archivo(sistema)
         elif opcion == "3":
             copiar_archivo_local(sistema)
+        elif opcion == "4":
+            eliminar_archivo(sistema)
         else:
-            print("Opción no válida. Elige 1, 2, 3 o 0.")
+            print("Opción no válida. Elige 1, 2, 3, 4 o 0.")
