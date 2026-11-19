@@ -78,6 +78,7 @@ Las entradas no utilizadas del directorio se identifican porque en el campo de n
 --------------------------------------------------------------------------------------
 
 '''
+
 import os
 import sys
 import stat
@@ -91,13 +92,7 @@ from collections import deque
 #Version de la API de FUSE que se está utilizando
 fuse.fuse_python_api = (0, 2)
 
-# Constantes de FiUnamFS (1440 KB = 720 clusters de 2048 bytes)
-CLUSTER_SIZE = 2048
-TOTAL_CLUSTERS = 720
-DIR_INICIO = 1
-ENTRADA_SIZE = 64
-MAX_ENTRADAS = 128
-DATOS_INICIO = 5
+# Constantes de FiUnamFS 
 DIR_INICIO = 1
 ENTRADA_SIZE = 64
 
@@ -173,7 +168,7 @@ class FiUnamFS(fuse.Fuse):
         archivos = []
         self.disco.seek(DIR_INICIO * self.cluster_size)
 
-        for i in range(MAX_ENTRADAS):
+        for i in range(self.max_entradas):
             entrada = self.disco.read(ENTRADA_SIZE)
             tipo = chr(entrada[0])
             nombre = entrada[1:16].decode("ascii", errors="ignore").strip("\x00 ")
@@ -210,7 +205,7 @@ class FiUnamFS(fuse.Fuse):
         self.disco.write(entrada)
 
     def buscar_clusters_contiguos(self, archivos: list, clusters_necesarios: int,
-                                  indice_ignorar: int = -1):
+    indice_ignorar: int = -1):
         """Busca un bloque continuo de clusters libres y devuelve el cluster inicial (o -1)."""
         # Mapa del disco: False = libre, True = ocupado
         clusters_ocupados = [False] * self.total_clusters
@@ -230,7 +225,7 @@ class FiUnamFS(fuse.Fuse):
 
         # Buscamos N clusters libres seguidos en la zona de datos
         contador_libres = 0
-        for c in range(self.datos_inicio, self.total_clustersS):
+        for c in range(self.datos_inicio, self.total_clusters):
             if not clusters_ocupados[c]:
                 contador_libres += 1
                 if contador_libres == clusters_necesarios:
@@ -360,8 +355,223 @@ class FiUnamFS(fuse.Fuse):
         # Afuera de self.mutex: se encola la tarea y se despierta al trabajador
         self._encolar_operacion(f"Eliminado: {nombre_arch}")
         return 0
+    
+    def open(self, path: str, flags: int):
+            if path == "/":
+                return -errno.EISDIR
+            with self.mutex:
+                arch = next((a for a in self.enlistar_archivos() if a["nombre"] == path[1:]), None)
+            if not arch:
+                return -errno.ENOENT
+            return 0
+
+    def release(self, path: str, flags: int):
+        return 0
+
+    def truncate(self, path: str, length: int):
+        if path == "/":
+            return -errno.EISDIR
+        if length < 0:
+            return -errno.EINVAL
+
+        with self.mutex:
+            archivos = self.enlistar_archivos()
+            arch = next((a for a in archivos if a["nombre"] == path[1:]), None)
+            if not arch:
+                return -errno.ENOENT
+
+            req_clusters = max(1, (length + self.cluster_size - 1) // self.cluster_size)
+            act_clusters = max(1, (arch["tamano"] + self.cluster_size - 1) // self.cluster_size)
+            cluster_ini = arch["cluster_ini"]
+
+            # Si el nuevo tamaño requiere más clusters, reubicamos en un bloque contiguo
+            if req_clusters > act_clusters:
+                nuevo_ini = self.buscar_clusters_contiguos(archivos, req_clusters, arch["indice"])
+                if nuevo_ini == -1:
+                    return -errno.ENOSPC
+                if nuevo_ini != cluster_ini and arch["tamano"] > 0:
+                    self.disco.seek(cluster_ini * self.cluster_size)
+                    previo = self.disco.read(arch["tamano"])
+                    self.disco.seek(nuevo_ini * self.cluster_size)
+                    self.disco.write(previo)
+                cluster_ini = nuevo_ini
+
+            # Rellenamos los bytes nuevos con ceros
+            if length > arch["tamano"]:
+                self.disco.seek((cluster_ini * self.cluster_size) + arch["tamano"])
+                self.disco.write(b"\x00" * (length - arch["tamano"]))
+
+            ahora = datetime.now().strftime("%Y%m%d%H%M%S")
+            self.escribir_entrada_directorio(
+                arch["indice"], arch["nombre"], length, cluster_ini, arch["creacion"], ahora
+            )
+            nombre_arch = arch["nombre"]
+
+        self._encolar_operacion(f"Truncado: {nombre_arch} ({length} B)")
+        return 0
+
+    def utime(self, path: str, times):
+        if path == "/":
+            return 0
+        with self.mutex:
+            arch = next((a for a in self.enlistar_archivos() if a["nombre"] == path[1:]), None)
+            if not arch:
+                return -errno.ENOENT
+
+            if times:
+                nueva_modif = datetime.fromtimestamp(times[1]).strftime("%Y%m%d%H%M%S")
+            else:
+                nueva_modif = datetime.now().strftime("%Y%m%d%H%M%S")
+
+            self.escribir_entrada_directorio(
+                arch["indice"], arch["nombre"], arch["tamano"],
+                arch["cluster_ini"], arch["creacion"], nueva_modif
+            )
+            nombre_arch = arch["nombre"]
+
+        self._encolar_operacion(f"Fecha actualizada: {nombre_arch}")
+        return 0
+
+    def statfs(self):
+        with self.mutex:
+            archivos = self.enlistar_archivos()
+
+        ocupados_datos = 0
+        for arch in archivos:
+            ocupados_datos += max(1, (arch["tamano"] + self.cluster_size - 1) // self.cluster_size)
+
+        total_datos = self.total_clusters - self.datos_inicio
+        libres_datos = max(0, total_datos - ocupados_datos)
+
+        st = fuse.StatVfs()
+        st.f_bsize = self.cluster_size
+        st.f_frsize = self.cluster_size
+        st.f_blocks = total_datos
+        st.f_bfree = libres_datos
+        st.f_bavail = libres_datos
+        st.f_files = self.max_entradas
+        st.f_ffree = self.max_entradas - len(archivos)
+        st.f_favail = self.max_entradas - len(archivos)
+        return st
+
+def imprimir_archivos(archivos):
+    print("\nContenido en FiUnamFS:\n")
+    if not archivos:
+        print("El directorio está vacío.")
+    else:
+        print(f"{'Nombre':<16} {'Tamaño (B)':<12} {'Cluster':<8} {'Modificación'}")
+        print("-" * 55)
+        for arch in archivos:
+            print(f"{arch['nombre']:<16} {arch['tamano']:<12} {arch['cluster_ini']:<8} {arch['modif']}")
+    print("\n")
+
+
+def menu():
+    """Menú interactivo en consola como alternativa al montaje por FUSE."""
+    fs = FiUnamFS()
+    fs.fsinit()
+    try:
+        while True:
+            print("\nFiUnamFS - Menú Interactivo")
+            print("----------------------------------------------")
+            print("1. Listar archivos en FiUnamFS")
+            print("2. Copiar archivo desde FiUnamFS a tu PC")
+            print("3. Copiar archivo desde tu PC a FiUnamFS")
+            print("4. Eliminar archivo de FiUnamFS")
+            print("5. Salir")
+            print("----------------------------------------------")
+
+            opcion = input("Selecciona una opción [1 - 5]: ").strip()
+
+            if opcion == "1":
+                with fs.mutex:
+                    archivos = fs.enlistar_archivos()
+                    imprimir_archivos(archivos)
+                
+
+            elif opcion == "2":
+                archivos = fs.enlistar_archivos()
+                imprimir_archivos(archivos)
+                nombre = input("Nombre del archivo en FiUnamFS: ").strip()
+                destino = input(f"Ruta de destino en tu PC (Enter para './{nombre}'): ").strip() or nombre
+
+                st = fs.getattr("/" + nombre)
+                if isinstance(st, int):
+                    print(f"[ERROR] No se encontró '{nombre}' en FiUnamFS.")
+                    continue
+
+                datos = fs.read("/" + nombre, st.st_size, 0)
+                if isinstance(datos, int):
+                    print(f"[ERROR] No se pudo leer '{nombre}'.")
+                    continue
+
+                with open(destino, "wb") as f_out:
+                    f_out.write(datos)
+                print(f"[OK] Archivo copiado a '{destino}' ({len(datos)} bytes).")
+                
+                print("\n")
+
+            elif opcion == "3":
+                origen = input("Ruta del archivo en tu PC: ").strip()
+                if not os.path.isfile(origen):
+                    print(f"[ERROR] No existe el archivo local '{origen}'.")
+                    continue
+
+                nombre_default = os.path.basename(origen)
+                nombre_dest = input(f"Nombre en FiUnamFS (máx 15 chars, Enter para '{nombre_default}'): ").strip() or nombre_default
+
+                res = fs.create("/" + nombre_dest, os.O_CREAT | os.O_WRONLY, 0o644)
+                if res == -errno.EINVAL:
+                    print("[ERROR] El nombre debe tener entre 1 y 15 caracteres ASCII válidos, sin '/'.")
+                    continue
+                elif res == -errno.EEXIST:
+                    print(f"[ERROR] Ya existe '{nombre_dest}' en FiUnamFS.")
+                    continue
+                elif res == -errno.ENOSPC:
+                    print("[ERROR] No hay espacio suficiente en el disco o directorio.")
+                    continue
+
+                with open(origen, "rb") as f_in:
+                    datos = f_in.read()
+
+                escritos = fs.write("/" + nombre_dest, datos, 0)
+                if escritos < 0:
+                    fs.unlink("/" + nombre_dest)
+                    print("[ERROR] Espacio contiguo insuficiente para guardar el archivo.")
+                else:
+                    print(f"[OK] Archivo '{nombre_dest}' copiado a FiUnamFS ({escritos} bytes).")
+                print("\n")
+
+            elif opcion == "4":
+                archivos = fs.enlistar_archivos()
+                imprimir_archivos(archivos)
+                nombre = input("Nombre del archivo a eliminar en FiUnamFS: ").strip()
+                res = fs.unlink("/" + nombre)
+                if res == 0:
+                    print(f"[OK] Archivo '{nombre}' eliminado.")
+                else:
+                    print(f"[ERROR] No se encontró '{nombre}' en FiUnamFS.")
+                print("\n")
+
+            elif opcion == "5":
+                print("Cerrando sistema de archivos y sincronizando...")
+                break
+            else:
+                print("[AVISO] Opción no válida. Elige un número del 1 al 5.")
+                print("\n")
+    finally:
+        fs.fsdestroy()
+def main():
+    if len(sys.argv) == 1:
+        menu()
+    else:
+        server = FiUnamFS(
+            version="%prog " + fuse.__version__,
+            usage="FiUnamFS FUSE System\n\n" + fuse.Fuse.fusage
+        )
+        server.parse(errex=1)
+        server.main()
+
 
 if __name__ == "__main__":
-    server = FiUnamFS(version="%prog " + fuse.__version__, usage=fuse.Fuse.fusage)
-    server.parse(errex=1)
-    server.main()
+    main()
