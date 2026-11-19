@@ -1,0 +1,26 @@
+COMMIT 6 - IMPORTACION DE ARCHIVOS A FIUNAMFS
+
+PRUEBA 1: IMPORTACION
+Archivo original: prueba_importacion.txt
+Nombre en FiUnamFS: prueba.txt
+Tamano: 43 bytes
+Cluster asignado: 5
+Entrada del directorio: byte 2112
+Resultado: Importacion exitosa.
+
+PRUEBA 2: PERSISTENCIA
+Se cerro y volvio a ejecutar el programa.
+El archivo prueba.txt permanecio registrado.
+Total de archivos: 4.
+Resultado: Persistencia verificada.
+
+PRUEBA 3: EXPORTACION E INTEGRIDAD
+Archivo exportado: salida/prueba.txt
+Algoritmo: SHA-256
+Hash original: 0CB2805FAEC64734020B6D9C9A2859F6DC7419F16822A36DBFB1159967C4FFD0
+Hash exportado: 0CB2805FAEC64734020B6D9C9A2859F6DC7419F16822A36DBFB1159967C4FFD0
+Resultado: Los hashes coinciden. Contenido recuperado sin alteraciones.
+
+OBSERVACIONES
+Las pruebas se realizaron sobre fiunamfs_pruebas.img.
+La imagen original fiunamfs.img no se modifico.

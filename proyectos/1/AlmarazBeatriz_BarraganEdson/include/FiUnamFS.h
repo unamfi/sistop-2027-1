@@ -94,6 +94,18 @@ public:
         const std::string& filename,
         const std::string& destination
     );
-    };
+        /**
+ * Importa un archivo desde el sistema anfitrion
+ * hacia la imagen FiUnamFS.
+ *
+ * @param source Ruta del archivo en Windows.
+ * @param filename Nombre que tendra dentro de FiUnamFS.
+ * @return true si la importacion fue exitosa.
+ */
+    bool importFile(
+        const std::string& source,
+        const std::string& filename
+    );
+ };
 
 #endif 

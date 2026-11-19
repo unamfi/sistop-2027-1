@@ -20,6 +20,8 @@
 #include <filesystem>
 #include <vector>
 #include <cstdint>
+#include <ctime>
+#include <string>
 
 //Abre la imagen binaria del sistema de archivos.
  
@@ -352,6 +354,342 @@ bool FiUnamFS::exportFile(
 
     std::cout << "Archivo exportado correctamente: "
               << destination << '\n';
+
+    return true;
+}
+
+/**
+ * Importa un archivo desde Windows hacia FiUnamFS.
+ */
+bool FiUnamFS::importFile(
+    const std::string& source,
+    const std::string& filename
+) {
+    // Comprobar que la imagen este abierta y sea valida.
+    if (!image.is_open() || !validate()) {
+        std::cerr << "Error: Imagen no valida o no abierta.\n";
+        return false;
+    }
+
+    // Comprobar que el archivo exista en Windows.
+    std::ifstream input(source, std::ios::binary);
+
+    if (!input.is_open()) {
+        std::cerr << "Error: No se pudo abrir el archivo de origen.\n";
+        return false;
+    }
+
+    // Verificar que el nombre sea valido para FiUnamFS.
+    if (filename.empty() || filename.size() > 15 ||
+        filename == "." || filename == ".." ||
+        filename.find_first_of("/\\") != std::string::npos) {
+        std::cerr << "Error: Nombre de archivo invalido.\n";
+        return false;
+    }
+
+    // Evitar nombres duplicados.
+    const auto duplicate = std::find_if(
+        files.begin(),
+        files.end(),
+        [&](const DirectoryEntry& entry) {
+            return entry.filename == filename;
+        }
+    );
+
+    if (duplicate != files.end()) {
+        std::cerr << "Error: Ya existe un archivo con ese nombre.\n";
+        return false;
+    }
+
+    // Obtener el tamano del archivo de origen.
+    input.seekg(0, std::ios::end);
+    const std::streampos fileSize = input.tellg();
+
+    if (fileSize < 0 ||
+        static_cast<uint64_t>(fileSize) > UINT32_MAX) {
+        std::cerr << "Error: Tamano de archivo invalido.\n";
+        return false;
+    }
+
+    const uint32_t size = static_cast<uint32_t>(fileSize);
+    input.seekg(0, std::ios::beg);
+    
+    // Por ahora no se permite importar archivos vacios.
+    if (size == 0) {
+        std::cerr << "Error: No se pueden importar archivos vacios.\n";
+        return false;
+    }
+        // Cargar el contenido del archivo en memoria.
+    std::vector<char> data(size);
+
+    if (!data.empty()) {
+        input.read(
+            data.data(),
+            static_cast<std::streamsize>(data.size())
+        );
+
+        if (!input) {
+            std::cerr << "Error: No se pudo leer completamente "
+                      << "el archivo de origen.\n";
+            return false;
+        }
+    }
+
+    std::cout << "Archivo de origen leido correctamente.\n";
+
+    // Calcular cuantos clusters necesitamos.
+    const uint32_t clusterSize = superBlock.clusterSize;
+
+    if (clusterSize == 0 || superBlock.totalClusters == 0) {
+        std::cerr << "Error: Geometria del volumen invalida.\n";
+        return false;
+    }
+
+    const uint64_t requiredClusters =
+        (static_cast<uint64_t>(size) + clusterSize - 1)
+        / clusterSize;
+
+    // El primer cluster de datos va despues del directorio.
+    const uint64_t firstDataCluster =
+        1ULL + superBlock.directoryClusters;
+
+    // Buscar un espacio continuo que no se cruce con otros archivos.
+    uint64_t freeCluster = 0;
+
+    for (uint64_t candidate = firstDataCluster;
+         candidate < superBlock.totalClusters;
+         ++candidate) {
+
+        if (requiredClusters >
+            static_cast<uint64_t>(superBlock.totalClusters) - candidate) {
+            break;
+        }
+
+        bool occupied = false;
+
+        for (const auto& entry : files) {
+            const uint64_t usedClusters =
+                (static_cast<uint64_t>(entry.size) + clusterSize - 1)
+                / clusterSize;
+
+            const uint64_t usedStart = entry.startCluster;
+            const uint64_t usedEnd = usedStart + usedClusters;
+            const uint64_t candidateEnd = candidate + requiredClusters;
+
+            if (candidate < usedEnd && usedStart < candidateEnd) {
+                occupied = true;
+                break;
+            }
+        }
+
+        if (!occupied) {
+            freeCluster = candidate;
+            break;
+        }
+    }
+
+    if (freeCluster == 0) {
+        std::cerr << "Error: No hay espacio continuo suficiente.\n";
+        return false;
+    }
+        // Buscar una entrada libre dentro del directorio.
+    const uint64_t directoryStart = clusterSize;
+    const uint64_t directorySize =
+        static_cast<uint64_t>(superBlock.directoryClusters) * clusterSize;
+
+    const uint64_t entrySize = 64;
+    const uint64_t totalEntries = directorySize / entrySize;
+
+    uint64_t freeEntryOffset = 0;
+    bool foundFreeEntry = false;
+
+    for (uint64_t i = 0; i < totalEntries; ++i) {
+        const uint64_t offset =
+            directoryStart + i * entrySize;
+
+        char type = '\0';
+
+        image.clear();
+        image.seekg(static_cast<std::streamoff>(offset));
+        image.read(&type, 1);
+
+        if (!image) {
+            std::cerr << "Error: No se pudo leer el directorio.\n";
+            return false;
+        }
+
+        // Las entradas que no son archivos activos estan disponibles.
+        if (type != 'F') {
+            freeEntryOffset = offset;
+            foundFreeEntry = true;
+            break;
+        }
+    }
+
+    if (!foundFreeEntry) {
+        std::cerr << "Error: El directorio de FiUnamFS esta lleno.\n";
+        return false;
+    }
+
+    std::cout << "Entrada libre encontrada en byte: "
+              << freeEntryOffset << '\n';
+
+    std::cout << "Archivo de origen: " << source << '\n';
+    std::cout << "Nombre en FiUnamFS: " << filename << '\n';
+    std::cout << "Tamano: " << size << " bytes\n";
+    std::cout << "Clusters necesarios: " << requiredClusters << '\n';
+    std::cout << "Primer cluster disponible: " << freeCluster << '\n';
+
+        // Calcular la posicion donde se guardara el archivo.
+    const uint64_t dataOffset =
+        freeCluster * static_cast<uint64_t>(clusterSize);
+
+    const uint64_t volumeSize =
+        static_cast<uint64_t>(superBlock.totalClusters) * clusterSize;
+
+    // Verificar que el contenido no exceda los limites del volumen.
+    if (dataOffset > volumeSize ||
+        static_cast<uint64_t>(size) > volumeSize - dataOffset) {
+        std::cerr << "Error: El archivo excede los limites del volumen.\n";
+        return false;
+    }
+
+    // Comprobar que la imagen fisica tenga el tamano esperado.
+    image.clear();
+    image.seekg(0, std::ios::end);
+
+    const std::streampos imageSize = image.tellg();
+
+    if (imageSize < 0 ||
+        static_cast<uint64_t>(imageSize) < volumeSize) {
+        std::cerr << "Error: La imagen esta incompleta.\n";
+        return false;
+    }
+
+    // Escribir el contenido en los clusters seleccionados.
+    image.clear();
+    image.seekp(static_cast<std::streamoff>(dataOffset));
+
+    if (!image) {
+        std::cerr << "Error: No se pudo localizar el espacio libre.\n";
+        return false;
+    }
+
+    if (!data.empty()) {
+        image.write(
+            data.data(),
+            static_cast<std::streamsize>(data.size())
+        );
+
+        if (!image) {
+            std::cerr << "Error: No se pudo escribir el contenido.\n";
+            return false;
+        }
+    }
+
+    image.flush();
+
+    if (!image) {
+        std::cerr << "Error: No se pudieron guardar los datos.\n";
+        return false;
+    }
+
+    std::cout << "Contenido escrito correctamente en el cluster "
+              << freeCluster << ".\n";
+
+        // Preparar la fecha y hora actuales.
+    std::time_t currentTime = std::time(nullptr);
+    std::tm* localTime = std::localtime(&currentTime);
+
+    if (localTime == nullptr) {
+        std::cerr << "Error: No se pudo obtener la fecha actual.\n";
+        return false;
+    }
+
+    char date[15];
+
+    if (std::strftime(
+            date,
+            sizeof(date),
+            "%Y%m%d%H%M%S",
+            localTime
+        ) != 14) {
+        std::cerr << "Error: No se pudo generar la fecha.\n";
+        return false;
+    }
+
+    // Preparar el nombre de 15 bytes.
+    char fixedName[15] = {};
+
+    std::copy(
+        filename.begin(),
+        filename.end(),
+        fixedName
+    );
+
+    // Preparar los 12 bytes reservados.
+    char reserved[12] = {};
+
+    // Posicionarnos en la entrada libre del directorio.
+    image.clear();
+    image.seekp(static_cast<std::streamoff>(freeEntryOffset));
+
+    if (!image) {
+        std::cerr << "Error: No se pudo localizar la entrada libre.\n";
+        return false;
+    }
+
+    // Escribir la entrada inicialmente como inactiva.
+    const char inactiveType = '/';
+    image.write(&inactiveType, 1);
+
+    // Nombre del archivo.
+    image.write(fixedName, 15);
+
+    // Tamano del archivo.
+    writeLittleEndian32(image, size);
+
+    // Cluster inicial.
+    writeLittleEndian32(
+        image,
+        static_cast<uint32_t>(freeCluster)
+    );
+
+    // Fecha de creacion.
+    image.write(date, 14);
+
+    // Fecha de modificacion.
+    image.write(date, 14);
+
+    // Bytes reservados.
+    image.write(reserved, 12);
+
+    image.flush();
+
+    if (!image) {
+        std::cerr << "Error: No se pudieron guardar los metadatos.\n";
+        return false;
+    }
+
+    // Activar la entrada solo cuando todos los datos esten escritos.
+    image.clear();
+    image.seekp(static_cast<std::streamoff>(freeEntryOffset));
+
+    const char activeType = 'F';
+    image.write(&activeType, 1);
+    image.flush();
+
+    if (!image) {
+        std::cerr << "Error: No se pudo activar la entrada.\n";
+        return false;
+    }
+
+    // Actualizar el directorio cargado en memoria.
+    image.clear();
+    loadDirectory();
+
+    std::cout << "\nArchivo importado correctamente: "
+              << filename << '\n';
 
     return true;
 }

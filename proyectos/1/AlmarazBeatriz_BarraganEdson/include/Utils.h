@@ -30,5 +30,12 @@ std::string readFixedString(
     std::fstream& file,
     size_t length
 );
+/**
+ * Escribe un entero de 32 bits en formato little-endian.
+ *
+ * @param file Imagen binaria donde se escribira el valor.
+ * @param value Numero que se desea almacenar.
+ */
+void writeLittleEndian32(std::fstream& file, uint32_t value);
 
 #endif

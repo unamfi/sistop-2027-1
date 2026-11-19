@@ -16,17 +16,24 @@
 
 #include <iostream>
 #include <string>
-int main() {
+int main(int argc, char* argv[]) {
     // Instancia principal del sistema de archivos
     FiUnamFS fs;
 
     std::cout << "Abriendo imagen FiUnamFS...\n";
 
     // Intentar abrir la imagen
-    if (!fs.openImage("../fiunamfs.img")){
-        std::cerr
-            << "Error: No se pudo abrir fiunamfs.img\n";
+    // Utilizar la imagen indicada por el usuario.
+    // Si no se proporciona una ruta, abrir la imagen original.
+    std::string imagePath = "../fiunamfs.img";
 
+    if (argc > 1) {
+        imagePath = argv[1];
+    }
+
+    if (!fs.openImage(imagePath)) {
+        std::cerr << "Error: No se pudo abrir la imagen: "
+                << imagePath << '\n';
         return 1;
     }
 
@@ -88,5 +95,31 @@ int main() {
     }
 
 
-    return 0;
+   
+        // Permitir importar un archivo desde Windows hacia FiUnamFS.
+    std::cout << "\n=== IMPORTAR ARCHIVO ===\n";
+
+    std::string source;
+
+    std::cout << "Escribe la ruta del archivo que deseas importar: ";
+    std::getline(std::cin, source);
+
+    if (!source.empty()) {
+        std::string importName;
+
+        std::cout << "Nombre que tendra dentro de FiUnamFS: ";
+        std::getline(std::cin, importName);
+
+        if (fs.importFile(source, importName)) {
+            std::cout << "Importacion completada.\n";
+
+            // Mostrar el directorio actualizado.
+            fs.listFiles();
+        } else {
+            std::cerr << "No fue posible importar el archivo.\n";
+        }
+    } else {
+        std::cout << "No se solicito ninguna importacion.\n";
+    }
+     return 0;
 }
