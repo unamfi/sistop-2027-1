@@ -46,3 +46,6 @@
 
 \- \*\*Eliminar archivo de FiUnamFS:\*\* `python fiunamfs.py <disco.img> rm <archivo\_fs>`
 
+
+## Notas de implementación
+- Validación estricta del superbloque (FiUnamFS y versión 27-1) antes de escribir.
