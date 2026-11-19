@@ -205,7 +205,7 @@ class FiUnamFS(fuse.Fuse):
         self.disco.write(entrada)
 
     def buscar_clusters_contiguos(self, archivos: list, clusters_necesarios: int,
-    indice_ignorar: int = -1):
+                                indice_ignorar: int = -1):
         """Busca un bloque continuo de clusters libres y devuelve el cluster inicial (o -1)."""
         # Mapa del disco: False = libre, True = ocupado
         clusters_ocupados = [False] * self.total_clusters
@@ -453,7 +453,7 @@ class FiUnamFS(fuse.Fuse):
         st.f_ffree = self.max_entradas - len(archivos)
         st.f_favail = self.max_entradas - len(archivos)
         return st
-
+        
 def imprimir_archivos(archivos):
     print("\nContenido en FiUnamFS:\n")
     if not archivos:
