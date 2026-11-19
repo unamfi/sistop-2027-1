@@ -49,12 +49,38 @@ def extraer_archivo(sistema):
         print(f"No se pudo extraer el archivo: {error}")
 
 
+def copiar_archivo_local(sistema):
+    """Solicita un archivo local y lo agrega a FiUnamFS."""
+    ruta_origen = input(
+        "Ruta del archivo de tu equipo (puedes pegarla aquí): "
+    ).strip().strip('"').strip("'")
+    if not ruta_origen:
+        print("Operación cancelada.")
+        return
+
+    nombre_destino = input(
+        "Nombre dentro de la imagen (Ingresa el nombre que tendrá dentro de la imagen): "
+    ).strip()
+    if not nombre_destino:
+        nombre_destino = None
+
+    try:
+        archivo = sistema.copiar_archivo(ruta_origen, nombre_destino)
+        print(
+            f"Copiado '{archivo.nombre}': {archivo.tamano} bytes, "
+            f"cluster inicial {archivo.cluster_inicial}."
+        )
+    except (ErrorFiUnamFS, OSError) as error:
+        print(f"No se pudo copiar el archivo: {error}")
+
+
 def iniciar(sistema):
-    """Muestra el menú inicial de listado y extracción."""
+    """Muestra el menú de operaciones disponibles."""
     while True:
         print("\n Administrador FiUnamFS ")
         print("1. Listar archivos de la imagen")
         print("2. Copiar un archivo de la imagen a mi equipo")
+        print("3. Copiar un archivo de mi equipo a FiUnamFS")
         print("0. Salir")
 
         opcion = input("Elige una opción: ").strip()
@@ -66,5 +92,7 @@ def iniciar(sistema):
             mostrar_archivos(sistema)
         elif opcion == "2":
             extraer_archivo(sistema)
+        elif opcion == "3":
+            copiar_archivo_local(sistema)
         else:
-            print("Opción no válida. Elige 1, 2 o 0.")
+            print("Opción no válida. Elige 1, 2, 3 o 0.")

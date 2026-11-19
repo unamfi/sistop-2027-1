@@ -18,7 +18,7 @@ Desde una terminal, en esta carpeta:
 python main.py
 ```
 
-El menú permite listar los archivos y copiar uno de FiUnamFS al equipo. Para extraer un archivo, escribe su nombre tal como aparece en la lista y luego una ruta destino completa, incluyendo el nombre del archivo.
+El menú permite listar, extraer un archivo de FiUnamFS y copiar un archivo local hacia FiUnamFS. Para extraer, escribe el nombre del archivo y una ruta destino completa. Para agregar, escribe la ruta local; el nombre dentro del volumen debe tener como máximo 15 caracteres ASCII.
 
 Por ejemplo:
 
@@ -26,4 +26,15 @@ Por ejemplo:
 C:\Users\Carlos\Documents\logo.png
 ```
 
-Si ya existe un archivo en la ruta destino, la extracción se cancela para evitar sobrescribirlo.
+Si ya existe un archivo en la ruta de extracción, la operación se cancela para evitar sobrescribirlo.
+
+## Probar sin alterar la imagen original
+
+La opción de copiar modifica la imagen. Para probarla, trabaja sobre una copia:
+
+```bash
+cp ../fiunamfs.img prueba.img
+python main.py prueba.img
+```
+
+El archivo `prueba.img` está excluido del repositorio por `.gitignore`.
