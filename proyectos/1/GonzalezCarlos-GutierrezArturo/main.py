@@ -1,5 +1,6 @@
 from pathlib import Path
 from fiunamfs import ErrorFiUnamFS, SistemaFiUnamFS
+from interfaz import iniciar
 
 
 def main():
@@ -7,9 +8,7 @@ def main():
 
     try:
         sistema = SistemaFiUnamFS(ruta)
-
-        for archivo in sistema.listar_archivos():
-            print(archivo.nombre, archivo.tamano, "bytes")
+        iniciar(sistema)
 
     except (ErrorFiUnamFS, OSError) as error:
         print("Error:", error)

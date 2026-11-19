@@ -131,3 +131,58 @@ class SistemaFiUnamFS:
             )
 
         return archivos
+
+    def extraer_archivo(self, nombre, ruta_destino):
+        """Copia un archivo de FiUnamFS a una ruta local."""
+        archivo_encontrado = next(
+            (archivo for archivo in self.listar_archivos()
+             if archivo.nombre == nombre),
+            None,
+        )
+
+        if archivo_encontrado is None:
+            raise ErrorFiUnamFS(
+                f"No existe '{nombre}' en el directorio de FiUnamFS."
+            )
+
+        inicio_datos = (
+            archivo_encontrado.cluster_inicial * self.tamano_cluster
+        )
+        fin_datos = inicio_datos + archivo_encontrado.tamano
+
+        if archivo_encontrado.cluster_inicial < self.primer_cluster_datos:
+            raise ErrorFiUnamFS(
+                f"La entrada de '{nombre}' apunta al área reservada."
+            )
+
+        if fin_datos > TAM_DISCO:
+            raise ErrorFiUnamFS(
+                f"Los datos de '{nombre}' exceden el tamaño de la imagen."
+            )
+
+        ruta_destino = Path(ruta_destino)
+        if ruta_destino.resolve() == self.ruta_imagen.resolve():
+            raise ErrorFiUnamFS(
+                "El destino no puede ser la propia imagen FiUnamFS."
+            )
+
+        if ruta_destino.exists():
+            raise ErrorFiUnamFS(
+                f"Ya existe el archivo destino: {ruta_destino}"
+            )
+
+        ruta_destino.parent.mkdir(parents=True, exist_ok=True)
+
+        with self.ruta_imagen.open("rb") as imagen:
+            imagen.seek(inicio_datos)
+            contenido = imagen.read(archivo_encontrado.tamano)
+
+        if len(contenido) != archivo_encontrado.tamano:
+            raise ErrorFiUnamFS(
+                f"No se pudieron leer todos los datos de '{nombre}'."
+            )
+
+        with ruta_destino.open("wb") as archivo_local:
+            archivo_local.write(contenido)
+
+        return ruta_destino
