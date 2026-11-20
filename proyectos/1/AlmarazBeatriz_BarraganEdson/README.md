@@ -1,17 +1,19 @@
-# FiUnamFS
+# (Micro) sistema de archivos multihilos 2027-1
 
 ## Autores
 
-- Beatriz Almaraz
-- Edson Barragán
+- Beatriz Almaraz García
+- Edson Barragán Galicia
 
 ---
 
 ## Descripción
 
-Implementación de un gestor para el sistema de archivos **FiUnamFS**, desarrollada como parte de la asignatura de Sistemas Operativos.
+Implementación de un gestor para el sistema de archivos **FiUnamFS**, desarrollada como parte de la asignatura de Sistemas Operativos incluyendo conceptos teóricos como prácticos revisados durante el curso.
 
 El proyecto permite interactuar con una imagen de disco (`.img`) que utiliza el formato FiUnamFS, proporcionando herramientas para visualizar y administrar la información almacenada en ella.
+
+Las pruebas individuales se encuentran al final del readme, donde ambos nos involucramos de forma directa con el código, intentando que este mismo sea agradable de leer, que los archivos no estén sobrecargados de información y que Gunnar vea que si le hechamos ganas :D 
 
 ---
 
@@ -251,29 +253,13 @@ También se puede compilar la prueba desde la raíz del proyecto con:
 make test
 ```
 
-La prueba requiere que la imagen `fiunamfs_pruebas.img` se encuentre en la
-carpeta padre del proyecto, debido a la ruta relativa utilizada por el
-programa de prueba.
-
----
-
-## Limpieza del Proyecto
-
-Para eliminar los archivos generados durante la compilación:
-
-```bash
-make clean
-```
-
 ---
 
 ## Evidencias y Pruebas
 
-Las siguientes secciones están destinadas a la inclusión de capturas de pantalla que demuestren el correcto funcionamiento del sistema.
+Pruebas hechas en nuestras terminales, además, se hizo que ambos integrantes participaramos con el código, los commits están diferenciados por los usuarios.
 
 ### Validación del Superbloque
-
-
 
 ![Validación del superbloque](evidencias/Captura%20de%20pantalla%202026-11-16%20202608.png)
 
@@ -295,6 +281,8 @@ Las siguientes secciones están destinadas a la inclusión de capturas de pantal
 
 
 [Resultados de la exportación](evidencias/commit_5/resultados.txt)
+
+![Evidencia visual de exportación de mensaje.jpg](evidencias/commit_5/exportacion_mensaje.jpeg)
 
 ---
 
