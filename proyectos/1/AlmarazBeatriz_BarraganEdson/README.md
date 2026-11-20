@@ -15,9 +15,21 @@ El proyecto permite interactuar con una imagen de disco (`.img`) que utiliza el 
 
 ---
 
+## Organización del código
+
+- `src/main.cpp`: flujo interactivo y comunicación con el usuario.
+- `src/FiUnamFS.cpp`: apertura, lectura y validación del superbloque.
+- `src/DirectoryOperations.cpp`: lectura del directorio y listado de archivos.
+- `src/FileOperations.cpp`: exportación, importación y eliminación lógica.
+- `src/Utils.cpp`: lectura y escritura de valores en formato little-endian.
+- `tests/test_listing.cpp`: prueba independiente de concurrencia.
+- `include/`: declaraciones de clases, estructuras y funciones auxiliares.
+
+---
+
 ## Características
 
-El sistema implementa las siguientes funcionalidades:
+El sistema implementa las funcionalidades:
 
 - Apertura de imágenes de disco FiUnamFS.
 - Lectura del superbloque.
@@ -26,37 +38,6 @@ El sistema implementa las siguientes funcionalidades:
 - Visualización de archivos almacenados.
 - Gestión de archivos dentro de la imagen.
 - Operaciones de administración definidas por la especificación del proyecto.
-
----
-
-## Estructura del Proyecto
-
-```text
-AlmarazBeatriz_BarraganEdson/
-│
-├── build/
-│
-├── include/
-│   ├── DirectoryEntry.h
-│   ├── FiUnamFS.h
-│   ├── Operation.h
-│   ├── SuperBlock.h
-│   ├── ThreadManager.h
-│   └── Utils.h
-│
-├── src/
-│   ├── DirectoryEntry.cpp
-│   ├── FiUnamFS.cpp
-│   ├── ThreadManager.cpp
-│   ├── Utils.cpp
-│   └── main.cpp
-│
-├── tests/
-│
-├── Makefile
-├── README.md
-└── fiunamfs.img
-```
 
 ---
 
@@ -113,7 +94,7 @@ fiunamfs.exe
 ### Compilación manual
 
 ```bash
-g++ src/main.cpp src/FiUnamFS.cpp src/Utils.cpp -Iinclude -o fiunamfs.exe
+g++ src/main.cpp src/FiUnamFS.cpp src/DirectoryOperations.cpp src/FileOperations.cpp src/Utils.cpp -Iinclude -o fiunamfs.exe
 ```
 
 ---
@@ -172,19 +153,6 @@ Información obtenida:
 - Tamaño de cluster.
 - Número de clusters destinados al directorio.
 - Número total de clusters.
-
-Ejemplo de salida:
-
-```text
-=== SUPERBLOQUE ===
-
-Sistema: FiUnamFS
-Version: 27-1
-Etiqueta: Disco de Gunnar
-Tamano de cluster: 2048 bytes
-Clusters de directorio: 4
-Clusters totales: 720
-```
 
 ---
 
@@ -245,13 +213,47 @@ Permite eliminar archivos almacenados dentro del sistema FiUnamFS mediante el me
 
 ### Monitoreo Concurrente
 
-El sistema incorpora hilos para cumplir los requerimientos de concurrencia establecidos en el proyecto.
+La concurrencia se verifica mediante una prueba independiente ubicada en
+`tests/test_listing.cpp`. Esta prueba comparte un objeto `FiUnamFS`
+entre tres hilos y utiliza un mutex para sincronizar el acceso al directorio
+y a la imagen. No forma parte del flujo interactivo de `fiunamfs.exe`.
 
 Los hilos permiten:
 
 - Ejecutar operaciones simultáneamente.
 - Reportar el estado de las operaciones.
-- Mantener un registro de actividades realizadas sobre la imagen.
+- Probar listados concurrentes junto con una operación de eliminación.
+
+La prueba se encuentra dentro de la carpeta `tests/`. Para compilarla y ejecutarla
+desde la raíz del proyecto:
+
+### Windows
+
+```powershell
+g++ tests/test_listing.cpp src/FiUnamFS.cpp src/DirectoryOperations.cpp `
+   src/FileOperations.cpp src/Utils.cpp `
+   -Iinclude -std=c++17 -pthread -o prueba_concurrencia.exe
+.\prueba_concurrencia.exe
+```
+
+### Ubuntu / Debian
+
+```bash
+g++ tests/test_listing.cpp src/FiUnamFS.cpp src/DirectoryOperations.cpp \
+   src/FileOperations.cpp src/Utils.cpp \
+   -Iinclude -std=c++17 -pthread -o prueba_concurrencia
+./prueba_concurrencia
+```
+
+También se puede compilar la prueba desde la raíz del proyecto con:
+
+```bash
+make test
+```
+
+La prueba requiere que la imagen `fiunamfs_pruebas.img` se encuentre en la
+carpeta padre del proyecto, debido a la ruta relativa utilizada por el
+programa de prueba.
 
 ---
 
@@ -273,43 +275,49 @@ Las siguientes secciones están destinadas a la inclusión de capturas de pantal
 
 
 
-![Validación del Superb bloque](evidencias\Captura de pantalla 2026-11-16 202608.png)
+![Validación del superbloque](evidencias/Captura%20de%20pantalla%202026-11-16%20202608.png)
 
 ---
 
 ### Lectura del Directorio
 
-![Lectura del Directorio](evidencias\Captura de pantalla 2026-11-16 211532.png)
+![Lectura del directorio](evidencias/Captura%20de%20pantalla%202026-11-16%20211532.png)
 
 ---
 
 ### Listado de Archivos
 
-![Listado de Archivos](evidencias\Captura de pantalla 2026-11-19 224007.png)
+![Listado de archivos](evidencias/Captura%20de%20pantalla%202026-11-19%20224007.png)
 
 ---
 
 ### Exportación de Archivos
 
 
-![Exportación de Archivos](evidencias\commit_5)
+[Resultados de la exportación](evidencias/commit_5/resultados.txt)
 
 ---
 
 ### Importación de Archivos
 
 
-![Importación de Archivos (TXT y PNG)](commit_6\capturas\01_comparacion_hashes.png)
+![Comparación de hashes después de la importación](evidencias/commit_6/capturas/01_comparacion_hashes.png)
 
 ---
 
 ### Eliminación de Archivos
 
 
-![Eliminación de Archivos](evidencias\commit_7)
+[Resultados de eliminación y reutilización del espacio](evidencias/commit_7/resultados.txt)
 
 ---
 
 ### Monitoreo Concurrente
 
-![Monitoreo Concurrente](evidencias\commit_7)
+![Prueba de tres hilos](evidencias/commit_7/capturas/01_concurrencia_tres_hilos.png)
+
+![Importación y listados concurrentes](evidencias/commit_7/capturas/02_concurrencia_importacion_listados.png)
+
+![Eliminación y listados concurrentes](evidencias/commit_7/capturas/03_concurrencia_eliminacion_listados.png)
+
+[Resultados de las pruebas de concurrencia](evidencias/commit_7/concurrencia_listados.txt)
