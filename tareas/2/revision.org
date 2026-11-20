@@ -23,6 +23,19 @@
     - Es parte de /ser profesional/ en nuestras entregas...
 - Calificación :: 9
 
+** Bermejo Flores y Hernández Reyes
+- Archivos :: [[./BermejoFlores-HernandezReyes/archivos_recientes.py][archivos_recientes.py]]
+- Comentarios ::
+  - En la entrega de una tarea... ¡Regálame un =README=, que nada te
+    cuesta! 😉 ¡O por lo menos comentarios en tu código!
+    - Es parte de /ser profesional/ en nuestras entregas...
+  - Código compacto, correcto y claro de entender
+  - La entrega fue recibida tarde, aunque [[https://github.com/BeckaPomegranate/sistop-2027-1/commit/69a38c7f6985df978010269f9b2bf69e75584af5][hay evidencia]] de que la
+    /intentaron/ entregar a tiempo
+    - ... Pero no hicieron el /pull request/.
+    - Es parte de su responsabilidad verificar que la entrega esté hecha 🙂
+- Calificación :: 7
+
 ** Berumen Daniel
 - Documentación :: [[./BerumenDaniel/README.md][README.md]]
 - Archivos :: [[./BerumenDaniel/archivos.py][archivos.py]]
