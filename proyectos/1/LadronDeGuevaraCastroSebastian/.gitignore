@@ -1,0 +1,6 @@
+# Archivos que genera Python al ejecutar el programa
+__pycache__/
+*.pyc
+
+# Las imágenes del disco se usan para probar, no son parte de la entrega
+*.img
