@@ -1,0 +1,6 @@
+# Imagenes generadas durante las pruebas
+*.img
+
+# Archivos temporales de Python
+__pycache__/
+*.pyc
