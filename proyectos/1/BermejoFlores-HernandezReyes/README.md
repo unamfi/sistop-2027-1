@@ -31,18 +31,37 @@ archivos **FiUnamFS** (versión `27-1`), un micro sistema de archivos plano de
 
 ## Uso
 
-Modo interactivo:
+Menú guiado (no requiere conocer ninguna orden):
 
 ```
 python3 fiunamfs.py fiunamfs.img
-fiunamfs> ayuda
 ```
 
-Una sola orden:
+```
+==== FiUnamFS: Disco de Gunnar ====
+  1. Ver los archivos del disco
+  2. Copiar un archivo del disco a mi equipo
+  3. Copiar un archivo de mi equipo al disco
+  4. Eliminar un archivo del disco
+  5. Información del disco
+  0. Salir
+Elige una opción:
+```
 
-```
-python3 fiunamfs.py fiunamfs.img <orden> [argumentos]
-```
+El menú va preguntando lo necesario:
+
+- **Opciones 2 y 4:** muestran los archivos numerados y basta con escribir el
+  número. Eliminar pide confirmación (`s/n`).
+- **Opción 2:** pregunta con qué nombre guardar el archivo (Enter usa el mismo
+  nombre; también se puede dar una carpeta). Nunca sobrescribe archivos locales.
+- **Opción 3:** pide la ruta del archivo de tu equipo y el nombre que tendrá en
+  el disco (Enter usa el nombre original). Si el nombre no es válido, explica
+  por qué y pide otro.
+- Enter en cualquier pregunta cancela la operación y regresa al menú.
+
+### Modo de una sola orden
+
+Para guiones o uso rápido, se puede dar la orden directamente:
 
 | Orden | Qué hace |
 |---|---|
@@ -51,14 +70,13 @@ python3 fiunamfs.py fiunamfs.img <orden> [argumentos]
 | `put <ruta> [nombre]` | Copia del equipo a FiUnamFS (el nombre por omisión es el del archivo local) |
 | `rm <nombre>` | Elimina un archivo de FiUnamFS |
 | `info` | Muestra los datos del superbloque |
-| `ayuda` / `salir` | Ayuda / terminar |
 
 ### Ejemplos
 
 ```
 $ python3 fiunamfs.py fiunamfs.img ls
 $ python3 fiunamfs.py fiunamfs.img put foto.png
-Copiado 'foto.png' -> FiUnamFS como 'foto.png' (5000 bytes, cluster 5).
+Copiado 'foto.png' -> FiUnamFS como 'foto.png' (5000 bytes, cluster 209).
 $ python3 fiunamfs.py fiunamfs.img get foto.png copia.png
 Copiado 'foto.png' -> 'copia.png' (5000 bytes).
 $ python3 fiunamfs.py fiunamfs.img rm foto.png
@@ -92,8 +110,8 @@ Eliminado 'foto.png'.
 
 El programa usa dos hilos:
 
-- **Hilo de interfaz (principal):** lee las órdenes del usuario y crea una
-  `Solicitud` por cada una (productor).
+- **Hilo de interfaz (principal):** muestra el menú, lee lo que elige el usuario
+  y crea una `Solicitud` por cada operación (productor).
 - **Hilo `hilo-fs`:** es el único que accede a la imagen; toma solicitudes de
   la cola y las ejecuta (consumidor).
 

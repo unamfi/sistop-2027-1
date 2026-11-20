@@ -3,9 +3,26 @@
 FiUnamFS 27-1: cliente multihilos para el micro sistema de archivos.
 
 Proyecto 1 de Sistemas Operativos (Facultad de Ingeniería, UNAM).
-Autores: 
-Bermejo Flores José Tristán - 321016719
-Hernandez Reyes Rebeca Sarai - 321491864
+Autores:
+- Bermejo Flores José Tristán — 321016719
+- Hernández Reyes Rebeca Sarai — 321491864
+
+Qué hace
+--------
+Opera sobre una imagen FiUnamFS (archivo de 1440 KB) y permite listar el
+directorio, copiar un archivo del disco a tu equipo, copiar un archivo de tu
+equipo al disco y eliminar archivos del disco.
+
+Uso
+---
+  python3 fiunamfs.py fiunamfs.img            # menú guiado (no requiere ayuda)
+
+También hay un modo de una sola orden, útil para guiones:
+  python3 fiunamfs.py fiunamfs.img ls
+  python3 fiunamfs.py fiunamfs.img get <nombre> [destino]
+  python3 fiunamfs.py fiunamfs.img put <ruta> [nombre]
+  python3 fiunamfs.py fiunamfs.img rm <nombre>
+  python3 fiunamfs.py fiunamfs.img info
 
 Requisitos
 ----------
@@ -14,8 +31,8 @@ Python 3.8 o superior. Solo biblioteca estándar (sin dependencias).
 Estrategia de concurrencia
 --------------------------
 Hay dos hilos:
-  * Hilo de interfaz (principal): lee las órdenes del usuario, crea una
-    Solicitud y la deja en una cola.
+  * Hilo de interfaz (principal): atiende el menú, crea una
+    Solicitud por cada operación y la deja en una cola.
   * Hilo del sistema de archivos ("hilo-fs"): es el único que toca la imagen;
     toma solicitudes de la cola, las ejecuta y avisa el resultado.
 
@@ -32,7 +49,6 @@ Mecanismos de sincronización:
 
 import os
 import queue
-import shlex
 import struct
 import sys
 import threading
@@ -44,6 +60,10 @@ VERSION_FS = b"27-1"
 TAM_ENTRADA = 64
 TIPO_ARCHIVO = b"F"
 TIPO_VACIO = b"-"
+# El disco de ejemplo del profesor difiere un poco del texto de la especificación:
+# los nombres son de 14 caracteres rellenos con espacios más un byte nulo, y las
+# entradas vacías llevan 14 '#' más el nulo. Al leer se aceptan ambas formas; al
+# escribir se imita exactamente el disco de ejemplo.
 MAX_NOMBRE = 14
 NOMBRE_VACIO = b"#" * 14 + b"\x00"
 NOMBRES_VACIOS = (b"#" * 14, b"#" + b"." * 14)    # sin nulo final
@@ -52,6 +72,16 @@ FECHA_VACIA = b"0" * 14
 
 class ErrorFS(Exception):
     """Error esperable (entrada inválida, disco lleno, archivo inexistente...)."""
+
+
+def validar_nombre(nombre):
+    """Comprueba que 'nombre' sirva como nombre de archivo en FiUnamFS."""
+    if not 1 <= len(nombre) <= MAX_NOMBRE:
+        raise ErrorFS(f"El nombre debe tener de 1 a {MAX_NOMBRE} caracteres.")
+    if any(not 32 <= ord(c) < 127 for c in nombre) or nombre != nombre.strip():
+        raise ErrorFS("El nombre solo admite ASCII imprimible, sin espacios al inicio/final.")
+    if set(nombre) <= {"#", "."}:
+        raise ErrorFS("Ese nombre se confundiría con una entrada vacía.")
 
 
 class Entrada:
@@ -156,15 +186,6 @@ class FiUnamFS:
             return posicion
         return None
 
-    @staticmethod
-    def _validar_nombre(nombre):
-        if not 1 <= len(nombre) <= MAX_NOMBRE:
-            raise ErrorFS(f"El nombre debe tener de 1 a {MAX_NOMBRE} caracteres.")
-        if any(not 32 <= ord(c) < 127 for c in nombre) or nombre != nombre.strip():
-            raise ErrorFS("El nombre solo admite ASCII imprimible, sin espacios al inicio/final.")
-        if set(nombre) <= {"#", "."}:
-            raise ErrorFS("Ese nombre se confundiría con una entrada vacía.")
-
     # --- operaciones públicas (las ejecuta el hilo-fs) --------------------
     def info(self):
         with self.candado:
@@ -192,6 +213,8 @@ class FiUnamFS:
             if e.cluster < self.inicio_datos or inicio + e.tamano > self.clusters_total * self.tam_cluster:
                 raise ErrorFS(f"La entrada de '{nombre}' apunta fuera del área de datos.")
             datos = self._leer(inicio, e.tamano)
+        if os.path.isdir(destino):
+            destino = os.path.join(destino, nombre)
         try:
             with open(destino, "xb") as salida:
                 salida.write(datos)
@@ -199,11 +222,11 @@ class FiUnamFS:
             raise ErrorFS(f"'{destino}' ya existe; indica otro destino.")
         except OSError as err:
             raise ErrorFS(f"No pude escribir '{destino}': {err}")
-        return len(datos)
+        return len(datos), destino
 
     def copiar_dentro(self, ruta_local, nombre):
         """Equipo local -> FiUnamFS."""
-        self._validar_nombre(nombre)
+        validar_nombre(nombre)
         try:
             tamano = os.path.getsize(ruta_local)
         except OSError as err:
@@ -225,6 +248,8 @@ class FiUnamFS:
             if cluster is None:
                 raise ErrorFS(f"No hay {n} clusters contiguos libres (disco lleno o fragmentado).")
 
+            # Primero los datos (rellenos a cluster completo) y al final la entrada,
+            # para que un fallo a medias no deje una entrada apuntando a basura.
             self._escribir(cluster * self.tam_cluster, datos.ljust(n * self.tam_cluster, b"\x00"))
             ahora = datetime.now().strftime("%Y%m%d%H%M%S").encode("ascii")
             nueva = (TIPO_ARCHIVO + nombre.encode("ascii").ljust(MAX_NOMBRE, b" ") + b"\x00"
@@ -280,15 +305,23 @@ def pedir(cola, operacion, *args):
     return solicitud.resultado
 
 
-# --- Interfaz de línea de comandos ---------------------------------------
-AYUDA = """Órdenes:
+# --- Interfaz de usuario ---------------------------------------------------
+AYUDA = """Órdenes (modo de una sola orden):
   ls                       lista los archivos
   get <nombre> [destino]   copia de FiUnamFS a tu equipo
   put <ruta> [nombre]      copia de tu equipo a FiUnamFS
   rm  <nombre>             elimina un archivo de FiUnamFS
   info                     datos del volumen
-  ayuda                    esta ayuda
-  salir                    termina"""
+Sin orden, el programa abre un menú guiado."""
+
+MENU = """
+==== FiUnamFS: {etiqueta} ====
+  1. Ver los archivos del disco
+  2. Copiar un archivo del disco a mi equipo
+  3. Copiar un archivo de mi equipo al disco
+  4. Eliminar un archivo del disco
+  5. Información del disco
+  0. Salir"""
 
 
 def formatear_fecha(s):
@@ -297,27 +330,129 @@ def formatear_fecha(s):
     return s
 
 
+def mostrar_archivos(archivos, numerar=False, detalle=False):
+    for i, e in enumerate(archivos, 1):
+        numero = f"{i:>2}) " if numerar else ""
+        linea = f"{numero}{e.nombre:<14} {e.tamano:>9} B"
+        if detalle:
+            linea += (f"  cluster {e.cluster:<4} creado {formatear_fecha(e.creacion)}"
+                      f"  modif. {formatear_fecha(e.modificacion)}")
+        else:
+            linea += f"   modificado {formatear_fecha(e.modificacion)}"
+        print(linea)
+
+
+def elegir_archivo(cola, accion):
+    """Muestra los archivos numerados y devuelve el elegido (None si se cancela)."""
+    archivos = pedir(cola, "listar")
+    if not archivos:
+        print("El disco no tiene archivos.")
+        return None
+    mostrar_archivos(archivos, numerar=True)
+    while True:
+        respuesta = input(f"Número del archivo a {accion} (Enter para cancelar): ").strip()
+        if respuesta == "":
+            return None
+        if respuesta.isdigit() and 1 <= int(respuesta) <= len(archivos):
+            return archivos[int(respuesta) - 1]
+        print(f"Escribe un número entre 1 y {len(archivos)}.")
+
+
+def opcion_ver_archivos(cola):
+    archivos = pedir(cola, "listar")
+    if archivos:
+        mostrar_archivos(archivos, detalle=True)
+    else:
+        print("El disco no tiene archivos.")
+
+
+def opcion_copiar_a_equipo(cola):
+    archivo = elegir_archivo(cola, "copiar a tu equipo")
+    if archivo is None:
+        return
+    destino = input(f"Guardar como (archivo o carpeta) [{archivo.nombre}]: ").strip() or archivo.nombre
+    n, ruta = pedir(cola, "extraer", archivo.nombre, destino)
+    print(f"Listo: '{archivo.nombre}' se guardó en '{ruta}' ({n} bytes).")
+
+
+def opcion_copiar_al_disco(cola):
+    ruta = input("Ruta del archivo de tu equipo (Enter para cancelar): ").strip().strip("\"'")
+    if not ruta:
+        return
+    ruta = os.path.expanduser(ruta)
+    if not os.path.isfile(ruta):
+        print(f"No encuentro el archivo '{ruta}'.")
+        return
+    base = os.path.basename(ruta)
+    nombre = input(f"Nombre que tendrá en el disco, máx. {MAX_NOMBRE} caracteres [{base}]: ").strip() or base
+    while True:                       # se insiste hasta tener un nombre válido
+        try:
+            validar_nombre(nombre)
+            break
+        except ErrorFS as err:
+            print(f"El nombre '{nombre}' no sirve: {err}")
+            nombre = input("Escribe otro nombre (Enter para cancelar): ").strip()
+            if not nombre:
+                return
+    tamano, cluster = pedir(cola, "copiar_dentro", ruta, nombre)
+    print(f"Listo: '{nombre}' se copió al disco ({tamano} bytes).")
+
+
+def opcion_eliminar(cola):
+    archivo = elegir_archivo(cola, "eliminar")
+    if archivo is None:
+        return
+    if input(f"¿Seguro que quieres eliminar '{archivo.nombre}' del disco? (s/n): ").strip().lower() != "s":
+        print("No se eliminó nada.")
+        return
+    pedir(cola, "eliminar", archivo.nombre)
+    print(f"Listo: '{archivo.nombre}' se eliminó del disco.")
+
+
+def opcion_info(cola):
+    datos = pedir(cola, "info")
+    print(f"Etiqueta del volumen: {datos['etiqueta']}")
+    print(f"Tamaño de cluster:    {datos['tam_cluster']} bytes")
+    print(f"Clusters en total:    {datos['clusters_total']} ({datos['clusters_dir']} del directorio)")
+    print(f"Archivos:             {datos['archivos']} de {datos['capacidad_entradas']} posibles")
+
+
+def menu(cola, etiqueta):
+    """Menú guiado: pregunta lo que necesita, no hace falta conocer órdenes."""
+    acciones = {"1": opcion_ver_archivos, "2": opcion_copiar_a_equipo,
+                "3": opcion_copiar_al_disco, "4": opcion_eliminar, "5": opcion_info}
+    while True:
+        print(MENU.format(etiqueta=etiqueta))
+        try:
+            opcion = input("Elige una opción: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return
+        if opcion in ("0", "q", "salir"):
+            return
+        accion = acciones.get(opcion)
+        if accion is None:
+            print("Opción no válida: escribe un número del menú.")
+            continue
+        try:
+            accion(cola)
+        except ErrorFS as err:
+            print(f"Error: {err}")
+        except (EOFError, KeyboardInterrupt):
+            print("\nOperación cancelada.")
+
+
 def atender(cola, partes):
-    """Ejecuta una orden. Devuelve False si hay que terminar."""
-    if not partes:
-        return True
+    """Modo de una sola orden (para guiones o uso rápido)."""
     orden, args = partes[0].lower(), partes[1:]
     try:
-        if orden in ("salir", "exit", "quit"):
-            return False
-        elif orden in ("ayuda", "help", "?"):
-            print(AYUDA)
-        elif orden in ("ls", "dir", "listar"):
+        if orden in ("ls", "dir", "listar") and not args:
             archivos = pedir(cola, "listar")
-            if not archivos:
-                print("(directorio vacío)")
-            for e in archivos:
-                print(f"{e.nombre:<15} {e.tamano:>9} B  cluster {e.cluster:<4} "
-                      f"creado {formatear_fecha(e.creacion)}  modif. {formatear_fecha(e.modificacion)}")
+            mostrar_archivos(archivos, detalle=True) if archivos else print("(directorio vacío)")
         elif orden == "get" and 1 <= len(args) <= 2:
             destino = args[1] if len(args) == 2 else args[0]
-            n = pedir(cola, "extraer", args[0], destino)
-            print(f"Copiado '{args[0]}' -> '{destino}' ({n} bytes).")
+            n, ruta = pedir(cola, "extraer", args[0], destino)
+            print(f"Copiado '{args[0]}' -> '{ruta}' ({n} bytes).")
         elif orden == "put" and 1 <= len(args) <= 2:
             nombre = args[1] if len(args) == 2 else os.path.basename(args[0])
             tamano, cluster = pedir(cola, "copiar_dentro", args[0], nombre)
@@ -326,13 +461,11 @@ def atender(cola, partes):
             pedir(cola, "eliminar", args[0])
             print(f"Eliminado '{args[0]}'.")
         elif orden == "info" and not args:
-            for clave, valor in pedir(cola, "info").items():
-                print(f"{clave}: {valor}")
+            opcion_info(cola)
         else:
-            print("Orden no válida. Escribe 'ayuda'.")
+            print(AYUDA)
     except ErrorFS as err:
         print(f"Error: {err}")
-    return True
 
 
 def main(argv):
@@ -352,19 +485,7 @@ def main(argv):
         if len(argv) > 1:
             atender(cola, argv[1:])
         else:
-            print(f"FiUnamFS '{fs.etiqueta}' listo. Escribe 'ayuda' para ver las órdenes.")
-            while True:
-                try:
-                    linea = input("fiunamfs> ")
-                    partes = shlex.split(linea)
-                except (EOFError, KeyboardInterrupt):
-                    print()
-                    break
-                except ValueError as err:
-                    print(f"Error de sintaxis: {err}")
-                    continue
-                if not atender(cola, partes):
-                    break
+            menu(cola, fs.etiqueta)
     finally:
         cola.put(None)       # señal de término para el hilo-fs
         hilo.join()
