@@ -1,0 +1,5 @@
+# Las imágenes de prueba y lo que se copie desde FiUnamFS no van al repositorio
+*
+!.gitignore
+!README.md
+!fiunamfs.py
