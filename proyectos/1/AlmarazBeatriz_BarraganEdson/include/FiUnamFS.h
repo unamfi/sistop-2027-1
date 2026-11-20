@@ -12,23 +12,6 @@
 /**
  * Clase principal responsable de interactuar
  * con una imagen del sistema de archivos FiUnamFS.
- *
- * Funcionalidades implementadas hasta este punto:
- *
- * - Apertura de la imagen del sistema de archivos.
- * - Lectura del superbloque.
- * - Validación del sistema de archivos.
- * - Obtención de metadatos generales del volumen.
- * - Lectura de las entradas del directorio.
- * - Almacenamiento de archivos válidos en memoria.
- *
- * Funcionalidades pendientes:
- *
- * - Listado detallado de archivos.
- * - Copia de archivos desde FiUnamFS al sistema anfitrión.
- * - Copia de archivos hacia FiUnamFS.
- * - Eliminación de archivos.
- * - Sincronización mediante hilos.
  */
 class FiUnamFS {
 private:
