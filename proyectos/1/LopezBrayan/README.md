@@ -154,3 +154,5 @@ carrera sobre la imagen.
   haya espacio libre (el programa lo avisa).
 - No se manejan subdirectorios (la especificación no los contempla).
 - Nombres de archivo con acentos o ñ no están soportados (sólo US-ASCII).
+ 
+- Validacion de operaciones de lectura, escritura y sincronizacion verificada. 
