@@ -1,0 +1,60 @@
+#+title: Evaluación de la exposición
+#+author: Gunnar Wolf
+
+* El papel del sistema operativo en un servidor de juego multijugador
+
+- Tema presentado por :: Alejandro Cortés
+- Calificación global :: 7.07
+
+|------------------------+------+--------------------+------+---------|
+| Evaluación  compañeros | Peso | Evaluación docente | Peso | *Total* |
+|------------------------+------+--------------------+------+---------|
+|                   8.64 |  0.3 |                6.4 |  0.7 |    7.07 |
+|------------------------+------+--------------------+------+---------|
+#+TBLFM: @2$5=$1*$2+$3*$4;f-2
+
+* Evaluación grupal
+
+|              |  1 |  2 |  3 |  4 |  5 | Total |
+|--------------+----+----+----+----+----+-------|
+| Originalidad |  0 |  0 |  2 |  0 |  3 | 84.00 |
+|        Nivel |  0 |  0 |  1 |  1 |  3 | 88.00 |
+|   Relevancia |  0 |  0 |  1 |  1 |  3 | 88.00 |
+|     Claridad |  0 |  0 |  1 |  3 |  1 | 80.00 |
+|    Presencia |  0 |  0 |  0 |  2 |  3 | 92.00 |
+|--------------+----+----+----+----+----+-------|
+|              |    |    |    |    |    | 86.40 |
+#+TBLFM: @2$7..@6$7=10 * (0.2*$2 + 0.4*$3 + 0.6*$4 + 0.8*$5 + $6 ) / vsum($2..$6); f-2::@7$7=vmean(@2$7..@6$7); f-2
+
+** Comentarios de los compañeros
+
+- Creo que falto un poco mas de informacion
+
+* Evaluación por parte del docente
+
+| *Aspecto*                          | *Peso* | *Evaluación* | *Puntos* |
+|------------------------------------+--------+--------------+----------|
+| Contenido técnico y profundidad    |    0.3 |            7 |      2.1 |
+| Fuentes bibliográficas             |   0.15 |            0 |       0. |
+| Organización                       |   0.15 |           10 |      1.5 |
+| Comunicación oral y uso del tiempo |   0.25 |            7 |     1.75 |
+| Uso de recursos visuales           |   0.15 |            7 |     1.05 |
+|------------------------------------+--------+--------------+----------|
+| *Global*                           |        |              |     6.40 |
+#+TBLFM: @<<$4..@>>$4=$2*$3::$4=vsum(@<<..@>>);f-2
+
+** Comentarios
+- Prácticamente la totalidad de la exposición fue leída 🙁
+  - Tienes un ritmo de lectura relativamente natural y agradable,
+    pero tus láminas están /sobre-llenas/ de texto y reducen su valor 🙁
+  - Al leer, varias veces te /atoras/ en parte del texto, y se nota
+    claramente lo que dominas y lo que... tal vez no tanto
+- Me quedé esperando que mostraras más prácticamente (p.ej. con un
+  programita ejemplo) las llamadas al sistema que ilustras (como la familia
+  de funciones =epoll_*()=
+  - Y no es que faltara tiempo: la presentación fue un poco más corta que
+    el promedio. Le habría venido bien “bajar” a un nivel un poquito más
+    técnico.
+- No presentas ninguna fuente de datos para tu material 🙁
+  - Desafortunadamente, eso te baja muchos puntos... no puedo hacer nada al
+    respecto 🙁
