@@ -1,0 +1,16 @@
+# Archivos binarios de prueba y sus respaldos
+*.img
+*.bak
+
+# Archivos temporales generados por Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Entornos virtuales e IDEs
+.venv/
+.vscode/
+.idea/
+
+# Archivos exportados durante las pruebas
+salidas/
