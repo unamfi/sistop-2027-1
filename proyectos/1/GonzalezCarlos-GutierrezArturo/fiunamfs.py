@@ -164,6 +164,10 @@ class SistemaFiUnamFS:
             )
 
         ruta_destino = Path(ruta_destino)
+        # Si el destino es una carpeta, se conserva el nombre original.
+        if ruta_destino.is_dir():
+            ruta_destino = ruta_destino / nombre
+
         if ruta_destino.resolve() == self.ruta_imagen.resolve():
             raise ErrorFiUnamFS(
                 "El destino no puede ser la propia imagen FiUnamFS."

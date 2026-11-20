@@ -36,14 +36,15 @@ def extraer_archivo(solicitar_operacion):
         return
 
     ruta = input(
-        "Ruta destino completa, incluye el nombre del archivo: "
-    ).strip().strip('"')
-    if not ruta:
-        print("Operación cancelada.")
-        return
+        "Carpeta o ruta destino (Enter para guardarlo en extraidos/): "
+    ).strip().strip('"').strip("'")
+    if ruta:
+        destino = Path(ruta)
+    else:
+        destino = Path("extraidos") / nombre
 
     try:
-        destino = solicitar_operacion("extraer_archivo", nombre, Path(ruta))
+        destino = solicitar_operacion("extraer_archivo", nombre, destino)
         print(f"El archivo extraído en: {destino.resolve()}")
     except (ErrorFiUnamFS, OSError) as error:
         print(f"No se pudo extraer el archivo: {error}")
@@ -59,7 +60,7 @@ def copiar_archivo_local(solicitar_operacion):
         return
 
     nombre_destino = input(
-        "Nombre dentro de la imagen (Ingresa el nombre que tendrá dentro de la imagen): "
+        "Nombre dentro de la imagen (Enter para usar el mismo nombre): "
     ).strip()
     if not nombre_destino:
         nombre_destino = None
@@ -99,10 +100,7 @@ def eliminar_archivo(solicitar_operacion):
 
     try:
         solicitar_operacion("eliminar_archivo", nombre)
-        print(
-            f"Se eliminó '{nombre}' exitosamente "
-            
-        )
+        print(f"Se eliminó '{nombre}' exitosamente.")
     except (ErrorFiUnamFS, OSError) as error:
         print(f"No se pudo eliminar el archivo: {error}")
 
