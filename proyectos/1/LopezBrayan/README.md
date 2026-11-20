@@ -4,7 +4,7 @@ Sistemas Operativos — Facultad de Ingeniería, UNAM (semestre 2027-1)
 
 ## Autores
 
-- Brayan López Ramírez — NÚMERO DE CUENTA *(cambiar)*
+- NOMBRE COMPLETO DEL ALUMNO (número de cuenta) — *(cambiar por tus datos)*
 
 ## Descripción
 
@@ -19,14 +19,12 @@ archivos **FiUnamFS** (versión `27-1`) y permite:
 
 ## Entorno y dependencias
 
-- Lenguaje: **Python 3** (versión mayor 3), implementación CPython.
-  Versión con la que se probó: **Python 3.15.0a3** en Windows 11. Se
-  puede consultar la versión instalada con `python --version`.
+- Lenguaje: **Python 3** (probado con Python 3.12; no se usa nada exclusivo de
+  versiones recientes).
 - Módulos utilizados: únicamente la biblioteca estándar (`os`, `sys`, `struct`,
   `threading`, `datetime`). **No hay que instalar nada con pip.**
-- Sistema operativo: desarrollado y probado en Windows 11. No se usan
-  funciones específicas de ningún sistema.
-- En Windows el comando para ejecutar es `python`.
+- Sistema operativo: probado en Linux; no se usan funciones específicas de
+  ningún sistema, así que debe funcionar también en Windows y macOS.
 
 ## Archivos del proyecto
 
@@ -39,8 +37,8 @@ archivos **FiUnamFS** (versión `27-1`) y permite:
 ## Cómo ejecutarlo
 
 ```
-python crear_disco_prueba.py          # opcional: crea fiunamfs.img de prueba
-python fiunamfs.py fiunamfs.img       # abre el disco con el menú
+python3 crear_disco_prueba.py          # opcional: crea fiunamfs.img de prueba
+python3 fiunamfs.py fiunamfs.img       # abre el disco con el menú
 ```
 
 Si no se indica la imagen, se usa `fiunamfs.img` en la carpeta actual.
@@ -70,8 +68,8 @@ Listar:
 Elige una opcion: 1
 Nombre          Tamano(bytes)  Cluster  Creacion             Modificacion
 ----------------------------------------------------------------------------------
-hola.txt                   32        5  2026-10-28 18:26:00  2026-10-28 18:26:00
-README.txt               5600        6  2026-10-28 18:26:00  2026-10-28 18:26:00
+hola.txt                  32        5  2026-10-28 18:26:00  2026-10-28 18:26:00
+README.txt              5600        6  2026-10-28 18:26:00  2026-10-28 18:26:00
 Total: 2 archivo(s)
 ```
 
@@ -82,16 +80,16 @@ lista para ver los nombres):
 Elige una opcion: 2
 ...
 Nombre del archivo a copiar: hola.txt
-Carpeta o ruta destino (Enter = carpeta actual):
-Listo: 'hola.txt' (32 bytes) copiado a 'hola.txt'
+Carpeta o ruta destino (Enter = carpeta actual): /tmp
+Listo: 'hola.txt' (32 bytes) copiado a '/tmp/hola.txt'
 ```
 
 Copiar un archivo de mi computadora al FiUnamFS:
 
 ```
 Elige una opcion: 3
-Ruta del archivo de tu computadora: prueba.txt
-Listo: 'prueba.txt' (17 bytes) guardado desde el cluster 11
+Ruta del archivo de tu computadora: /home/alumno/tarea.txt
+Listo: 'tarea.txt' (1204 bytes) guardado desde el cluster 11
 ```
 
 Eliminar:
@@ -99,17 +97,9 @@ Eliminar:
 ```
 Elige una opcion: 4
 ...
-Nombre del archivo a eliminar: prueba.txt
-¿Seguro que quieres eliminar 'prueba.txt'? (s/n): s
-Listo: 'prueba.txt' eliminado
-```
-
-Ejemplos de errores que el programa maneja sin cerrarse:
-
-```
-Error: No existe el archivo 'noexiste.txt' en tu computadora
-Error: Ya existe un archivo llamado 'prueba.txt' en el FiUnamFS
-Error: No hay 800 clusters contiguos libres (fragmentacion externa o disco lleno)
+Nombre del archivo a eliminar: tarea.txt
+¿Seguro que quieres eliminar 'tarea.txt'? (s/n): s
+Listo: 'tarea.txt' eliminado
 ```
 
 ## Estrategia de diseño
@@ -117,50 +107,40 @@ Error: No hay 800 clusters contiguos libres (fragmentacion externa o disco lleno
 - Todas las cifras (tamaño de cluster = 2048 bytes, directorio en los clusters
   1 a 4, entradas de 64 bytes, etc.) salen de la especificación. Los enteros de
   32 bits se leen/escriben en *little endian* con `struct` y el formato `<I`.
-- La clase `SistemaArchivos` encapsula todo el acceso al disco: lee y valida el
-  superbloque (`cargar_superbloque`), lee el directorio (`obtener_directorio`) y
-  ofrece las operaciones (`ver_lista`, `sacar_archivo`, `meter_archivo`,
-  `quitar_archivo`, `ver_info`).
 - **Directorio plano**: al leer, se recorren las 128 entradas de 64 bytes. Una
   entrada está libre si su nombre es `#...............` (o su tipo es `-`).
 - **Asignación contigua**: al copiar un archivo hacia el FiUnamFS se calcula
-  cuántos clusters necesita (`calcular_clusters`) y se busca un hueco contiguo
-  con la estrategia de *primer ajuste* (`hallar_hueco`: el primer hueco donde
-  quepa, empezando en el cluster 5). Primero se escriben los datos y hasta el
-  final la entrada del directorio, para no dejar una entrada apuntando a datos
-  que no se escribieron.
+  cuántos clusters necesita y se busca un hueco contiguo con la estrategia de
+  *primer ajuste* (el primer hueco donde quepa, empezando en el cluster 5).
+  Primero se escriben los datos y hasta el final la entrada del directorio, para
+  no dejar una entrada apuntando a datos que no se escribieron.
 - **Eliminar** solo marca la entrada como vacía (igual que FAT); los datos
   siguen en el disco pero ya nadie los referencia y el espacio se puede reusar.
-- Los nombres de archivo se validan (`revisar_nombre`): máximo 15 caracteres y
-  sólo ASCII de 7 bits. Si ya existe un archivo con ese nombre, no se
-  sobrescribe (se avisa).
-- Los errores propios del sistema de archivos se lanzan como `ErrorSistema` y se
-  muestran al usuario sin cerrar el programa.
+- Los nombres de archivo se validan: máximo 15 caracteres y sólo ASCII de 7 bits.
+  Si ya existe un archivo con ese nombre, no se sobrescribe (se avisa).
 
 ## Sincronización entre hilos
 
 El programa usa **tres hilos**:
 
-| Hilo | Función | Qué hace |
-|---|---|---|
-| **Interfaz** (hilo principal) | `menu_usuario` | Muestra el menú, lee lo que escribe el usuario y arma una `Tarea` |
-| **Trabajador** | `worker_principal` | Es el único que accede a la imagen de disco; atiende las tareas en orden |
-| **Bitácora** | `worker_log` | Escribe en `fiunamfs.log` un registro de lo que hizo el trabajador |
+| Hilo | Qué hace |
+|---|---|
+| **Interfaz** (hilo principal) | Muestra el menú, lee lo que escribe el usuario y arma una `Solicitud` |
+| **Trabajador** | Es el único que accede a la imagen de disco; atiende las solicitudes |
+| **Bitácora** | Escribe en `fiunamfs.log` un registro de lo que hizo el trabajador |
 
 Se comunican con el esquema clásico **productor–consumidor**:
 
-- `ColaSegura` es una cola de capacidad fija protegida con un **mutex**
-  (`threading.Lock`, llamado `candado`) y dos **semáforos**
-  (`threading.Semaphore`): `lugares_vacios` cuenta los espacios libres
-  (bloquea al productor si la cola está llena) y `lugares_llenos` cuenta los
-  elementos disponibles (bloquea al consumidor si está vacía).
-- Hay dos colas: *interfaz → trabajador* (capacidad 5) y
+- `BufferAcotado` es un buffer de capacidad fija protegido con un **mutex**
+  (`threading.Lock`) y dos **semáforos** (`threading.Semaphore`): uno cuenta los
+  espacios libres (bloquea al productor si el buffer está lleno) y otro cuenta
+  los elementos disponibles (bloquea al consumidor si está vacío).
+- Hay dos buffers: *interfaz → trabajador* (capacidad 5) y
   *trabajador → bitácora* (capacidad 10).
-- Cada `Tarea` trae un **`threading.Event`** (`terminado`). El hilo de interfaz
-  se queda esperando en el evento (`mandar_tarea`) y el trabajador lo activa al
-  terminar; así el usuario ve el resultado de una operación antes de que le
-  aparezca el menú otra vez.
-- Para cerrar, la interfaz manda una tarea `salir`; el trabajador avisa a la
+- Cada `Solicitud` trae un **`threading.Event`**. El hilo de interfaz se queda
+  esperando en el evento y el trabajador lo activa al terminar; así el usuario
+  ve el resultado de una operación antes de que le aparezca el menú otra vez.
+- Para cerrar, la interfaz manda una solicitud `salir`; el trabajador avisa a la
   bitácora con un `None` y ambos hilos terminan; el principal hace `join()`.
 
 Como un solo hilo (el trabajador) modifica el disco, nunca hay dos hilos
