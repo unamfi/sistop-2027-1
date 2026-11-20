@@ -11,17 +11,32 @@ def mostrar_archivos(solicitar_operacion):
         return archivos
 
     print("\nArchivos en FiUnamFS:")
-    print(f"{'Nombre':<16} {'Tamaño':>12} {'Cluster inicial':>16}")
-    print("-" * 48)
+    print(
+        f"{'Nombre':<16} {'Tamaño':>10} {'Cluster':>8}  "
+        f"{'Última modificación':<19}"
+    )
+    print("-" * 57)
 
     for archivo in archivos:
         print(
             f"{archivo.nombre:<16} "
-            f"{archivo.tamano:>12} "
-            f"{archivo.cluster_inicial:>16}"
+            f"{archivo.tamano:>10} "
+            f"{archivo.cluster_inicial:>8}  "
+            f"{formatear_fecha(archivo.fecha_modificacion)}"
         )
 
     return archivos
+
+
+def formatear_fecha(fecha):
+    """Convierte AAAAMMDDHHMMSS a un formato más fácil de leer."""
+    if len(fecha) != 14 or not fecha.isdigit():
+        return fecha
+
+    return (
+        f"{fecha[0:4]}-{fecha[4:6]}-{fecha[6:8]} "
+        f"{fecha[8:10]}:{fecha[10:12]}:{fecha[12:14]}"
+    )
 
 
 def extraer_archivo(solicitar_operacion):
