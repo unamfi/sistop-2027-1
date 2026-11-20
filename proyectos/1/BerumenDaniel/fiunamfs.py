@@ -19,14 +19,15 @@ def leer_texto(archivo, posicion, longitud):
     archivo.seek(posicion)
     datos = archivo.read(longitud)
     texto = datos.decode('ascii')
+    texto = texto.replace('\x00', '')
     texto = texto.strip()
-    texto = texto.strip('\x00')
     return texto
 
 
 def leer_superbloque(ruta_imagen):
     archivo = open(ruta_imagen, 'rb')
 
+    # las posiciones vienen de la especificacion del profe
     superbloque = {}
     superbloque['nombre'] = leer_texto(archivo, 0, 8)
     superbloque['version'] = leer_texto(archivo, 10, 4)
@@ -40,7 +41,7 @@ def leer_superbloque(ruta_imagen):
 
 
 def validar_superbloque(superbloque):
-    # Si la imagen no es FiUnamFS 27-1 no se debe modificar, para no corromperla
+    # si no es FiUnamFS 27-1 no hay que tocarla porque se puede dañar
     if superbloque['nombre'] != NOMBRE_FS:
         print("Error: la imagen no es un sistema de archivos FiUnamFS")
         return False
@@ -73,6 +74,8 @@ def leer_directorio(ruta_imagen, superbloque):
     for i in range(numero_entradas):
         posicion = inicio_directorio + i * TAMANO_ENTRADA
 
+        # cada entrada mide 64 bytes: tipo (1), nombre (15), tamaño (4),
+        # cluster inicial (4), fecha creacion (14), fecha modificacion (14)
         entrada = {}
         entrada['numero_entrada'] = i
         entrada['tipo'] = leer_texto(archivo, posicion, 1)
@@ -82,7 +85,7 @@ def leer_directorio(ruta_imagen, superbloque):
         entrada['fecha_creacion'] = leer_texto(archivo, posicion + 24, 14)
         entrada['fecha_modificacion'] = leer_texto(archivo, posicion + 38, 14)
 
-        # Las entradas vacías se marcan con '-' o con un nombre que empieza con '#'
+        # las entradas vacias tienen '-' o el nombre empieza con #
         if entrada['tipo'] == 'F' and not entrada['nombre'].startswith('#'):
             lista_archivos.append(entrada)
 
@@ -136,7 +139,7 @@ def leer_archivo(ruta_imagen, superbloque, nombre):
         return None
 
     archivo = open(ruta_imagen, 'rb')
-    # Se leen solo 'tamano' bytes; el resto del último cluster es basura
+    # solo se leen los bytes que dice el tamaño, lo que sobra del ultimo cluster es basura
     posicion = entrada['cluster_inicial'] * superbloque['tamano_cluster']
     archivo.seek(posicion)
     contenido = archivo.read(entrada['tamano'])
@@ -176,6 +179,16 @@ def buscar_entrada_libre(ruta_imagen, superbloque):
     return -1
 
 
+def clusters_que_ocupa(tamano, tamano_cluster):
+    clusters = tamano // tamano_cluster
+    if tamano % tamano_cluster != 0:
+        clusters = clusters + 1
+    # un archivo vacio igual ocupa un cluster
+    if clusters == 0:
+        clusters = 1
+    return clusters
+
+
 def buscar_hueco(ruta_imagen, superbloque, clusters_necesarios):
     tamano_cluster = superbloque['tamano_cluster']
     primer_cluster_datos = 1 + superbloque['clusters_directorio']
@@ -184,15 +197,13 @@ def buscar_hueco(ruta_imagen, superbloque, clusters_necesarios):
     ocupados = []
     for entrada in leer_directorio(ruta_imagen, superbloque):
         inicio = entrada['cluster_inicial']
-        clusters = (entrada['tamano'] + tamano_cluster - 1) // tamano_cluster
-        if clusters == 0:
-            clusters = 1
+        clusters = clusters_que_ocupa(entrada['tamano'], tamano_cluster)
         ocupados.append([inicio, inicio + clusters])
 
     ocupados.sort()
 
-    # Asignación contigua: se revisan los espacios entre archivos y se usa
-    # el primero donde quepa el archivo completo (first fit)
+    # first fit: busco el primer hueco entre los archivos donde quepa todo
+    # el archivo junto (la asignacion es contigua)
     actual = primer_cluster_datos
     for rango in ocupados:
         inicio = rango[0]
@@ -243,9 +254,7 @@ def escribir_archivo(ruta_imagen, superbloque, nombre, contenido):
         return False
 
     tamano_cluster = superbloque['tamano_cluster']
-    clusters_necesarios = (len(contenido) + tamano_cluster - 1) // tamano_cluster
-    if clusters_necesarios == 0:
-        clusters_necesarios = 1
+    clusters_necesarios = clusters_que_ocupa(len(contenido), tamano_cluster)
 
     cluster_inicial = buscar_hueco(ruta_imagen, superbloque, clusters_necesarios)
     if cluster_inicial == -1:
@@ -256,8 +265,8 @@ def escribir_archivo(ruta_imagen, superbloque, nombre, contenido):
 
     archivo = open(ruta_imagen, 'r+b')
 
-    # Primero los datos y después la entrada: si algo falla a la mitad,
-    # el directorio no queda apuntando a datos incompletos
+    # primero los datos y luego la entrada, asi si algo falla el directorio
+    # no apunta a datos a medias
     archivo.seek(cluster_inicial * tamano_cluster)
     archivo.write(contenido)
 
@@ -297,8 +306,8 @@ def eliminar_archivo(ruta_imagen, superbloque, nombre):
         print("Error: no existe el archivo", nombre)
         return False
 
-    # Basta con marcar la entrada como vacía: sus clusters quedan libres
-    # porque ya ninguna entrada los usa
+    # no hace falta borrar los datos, con marcar la entrada como vacia
+    # esos clusters ya quedan libres
     posicion = superbloque['tamano_cluster'] + entrada['numero_entrada'] * TAMANO_ENTRADA
 
     archivo = open(ruta_imagen, 'r+b')

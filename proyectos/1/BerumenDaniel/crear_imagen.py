@@ -13,7 +13,7 @@ TAMANO_ENTRADA = 64
 def crear_imagen(ruta, etiqueta):
     archivo = open(ruta, 'wb')
 
-    # Primero se llena todo el disco con ceros para que mida exactamente 1440 KB
+    # lleno todo con ceros para que mida 1440 KB
     archivo.write(b'\x00' * TAMANO_DISCO)
 
     archivo.seek(0)
@@ -34,7 +34,7 @@ def crear_imagen(ruta, etiqueta):
     archivo.seek(48)
     archivo.write(struct.pack('<I', CLUSTERS_TOTALES))
 
-    # El directorio empieza en el cluster 1; todas sus entradas se marcan como vacías
+    # el directorio esta en el cluster 1, todas las entradas empiezan vacias
     inicio_directorio = TAMANO_CLUSTER
     numero_entradas = (CLUSTERS_DIRECTORIO * TAMANO_CLUSTER) // TAMANO_ENTRADA
 
@@ -76,7 +76,7 @@ if __name__ == "__main__":
 
     respuesta = input("¿Agregar archivos de ejemplo? (s/n): ")
     if respuesta == 's' or respuesta == 'S':
-        # Los datos empiezan después del directorio, en el cluster 5
+        # los datos empiezan en el cluster 5 (despues del directorio)
         agregar_archivo_ejemplo(ruta, 0, "hola.txt", "Hola desde FiUnamFS\n", 5)
         agregar_archivo_ejemplo(ruta, 1, "notas.txt", "Proyecto de Sistemas Operativos\nFacultad de Ingenieria\n", 6)
         agregar_archivo_ejemplo(ruta, 2, "grande.txt", "A" * 5000, 7)
