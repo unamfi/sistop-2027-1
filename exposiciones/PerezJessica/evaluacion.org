@@ -1,0 +1,70 @@
+#+title: Evaluación de la exposición
+#+author: Gunnar Wolf
+
+* Therac-25: una condición de carrera y un desbordamiento de 8 bits
+
+- Tema presentado por :: Jessica Estefani Perez Baez
+- Calificación global :: 9.54
+
+|------------------------+------+--------------------+------+---------|
+| Evaluación  compañeros | Peso | Evaluación docente | Peso | *Total* |
+|------------------------+------+--------------------+------+---------|
+|                    9.5 |  0.3 |               9.55 |  0.7 |    9.54 |
+|------------------------+------+--------------------+------+---------|
+#+TBLFM: @2$5=$1*$2+$3*$4;f-2
+
+* Evaluación grupal
+
+|              |  1 |  2 |  3 |  4 |  5 | Total |
+|--------------+----+----+----+----+----+-------|
+| Originalidad |  0 |  0 |  0 |  2 |  6 | 95.00 |
+|        Nivel |  0 |  0 |  0 |  2 |  6 | 95.00 |
+|   Relevancia |  0 |  0 |  0 |  3 |  5 | 92.50 |
+|     Claridad |  0 |  0 |  0 |  2 |  6 | 95.00 |
+|    Presencia |  0 |  0 |  0 |  1 |  7 | 97.50 |
+|--------------+----+----+----+----+----+-------|
+|              |    |    |    |    |    | 95.00 |
+#+TBLFM: @2$7..@6$7=10 * (0.2*$2 + 0.4*$3 + 0.6*$4 + 0.8*$5 + $6 ) / vsum($2..$6); f-2::@7$7=vmean(@2$7..@6$7); f-2
+
+** Comentarios de los compañeros
+
+- muy interesante
+
+* Evaluación por parte del docente
+
+| *Aspecto*                          | *Peso* | *Evaluación* | *Puntos* |
+|------------------------------------+--------+--------------+----------|
+| Contenido técnico y profundidad    |    0.3 |           10 |       3. |
+| Fuentes bibliográficas             |   0.15 |           10 |      1.5 |
+| Organización                       |   0.15 |           10 |      1.5 |
+| Comunicación oral y uso del tiempo |   0.25 |           10 |      2.5 |
+| Uso de recursos visuales           |   0.15 |            7 |     1.05 |
+|------------------------------------+--------+--------------+----------|
+| *Global*                           |        |              |     9.55 |
+#+TBLFM: @<<$4..@>>$4=$2*$3::$4=vsum(@<<..@>>);f-2
+
+** Comentarios
+
+- Muy buena dicción y ritmo. Logras mantener tu presentación a un ritmo
+  natural y atractivo. ¡Excelente! 😃
+- El énfasis que haces en tu presentación sobre la importancia de la
+  seguridad y de considerar nuestro campo laboral como algo que excede por
+  mucho a únicamente los equipos de cómputo me parece fundamental.
+- Tus láminas están correctamente separadas, pero tienen mucha
+  información. Me parece muy correcto que no lees exactamente lo que tienes
+  escrito en cada recuadro. ¡Muy bien!
+  - Sin embargo, supongo que por la forma en que organizas el avance de tu
+    presentación, varias veces me sentí perdido, al no saber qué parte de
+    la lámina estabas explicando.
+  - Verás que, sobre todo cuando hay mucha información en pantalla, yo
+    intento llevar la atención de la audiencia al punto específico que
+    estoy explicando, sea con movimientos del apuntador, resaltando el
+    texto, o algo por el estilo. Me parece que ayuda a que el texto que
+    conforma a la presentación /respalde/ lo que vas diciendo.
+- Ojo: mencionas una y otra vez *“8 bytes”*, cuando tienes escrito *“8
+  bits”*. Cada /byte/ mide 8 /bits/. ¡8 bytes son 64 bits! (en vez de un
+  rango 0–255 tendíamos un rango 0–18446744073709551616, y nunca habrían
+  aparecido los problemas que relatas)
+- Me parece excelente que presentes (en tu documento escrito) un programa
+  ejemplo en C ilustrando la situación. ¡Tendrías que haberlo mencionado
+  más que “de pasadita”!
