@@ -1,0 +1,40 @@
+PROYECTO FINAL - FIUNAMFS
+EVIDENCIAS DEL COMMIT 5
+
+Funcionalidad: Exportacion de archivos desde FiUnamFS
+Responsable: Edson
+Rama: desarrollo-edson
+Commit: aacaf7f
+
+OBJETIVO
+Implementar la exportacion de archivos almacenados en la imagen
+FiUnamFS hacia el sistema de archivos de Windows.
+
+PRUEBAS REALIZADAS
+
+Prueba 1: Exportacion de logo.png
+Resultado: Exitosa
+Tamano del archivo exportado: 126423 bytes
+Comprobacion: La imagen pudo abrirse correctamente en Windows.
+
+Prueba 2: Exportacion de README.org
+Resultado: Exitosa
+Tamano del archivo exportado: 31126 bytes
+Comprobacion: El archivo se exporto correctamente.
+
+Prueba 3: Exportacion de mensaje.jpg
+Resultado: Exitosa
+Tamano del archivo exportado: 254484 bytes
+Comprobacion: La imagen pudo abrirse correctamente en Windows.
+
+CAMBIOS REALIZADOS
+- Implementacion de exportFile().
+- Busqueda de archivos por nombre.
+- Lectura de datos binarios desde FiUnamFS.
+- Correccion de espacios al final de los nombres.
+- Validacion de archivos y rutas de destino.
+- Incorporacion de una opcion interactiva para exportar.
+
+CONCLUSION
+La exportacion funciono correctamente con los tres archivos
+almacenados en la imagen de FiUnamFS.

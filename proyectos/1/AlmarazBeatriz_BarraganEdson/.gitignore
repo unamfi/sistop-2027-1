@@ -1,0 +1,22 @@
+/// Ejecutables
+*.exe
+*.out
+
+# Objetos compilados
+*.o
+*.obj
+
+# Directorios de compilación
+build/
+
+# Archivos temporales
+*.tmp
+
+# Configuración de VS Code
+.vscode/
+
+# Logs
+*.log
+
+# Archivos exportados durante las pruebas
+salida/
