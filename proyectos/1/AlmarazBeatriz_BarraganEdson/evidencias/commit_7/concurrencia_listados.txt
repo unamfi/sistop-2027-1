@@ -1,0 +1,52 @@
+﻿=== PRUEBA DE CONCURRENCIA FIUNAMFS ===
+
+Directorio cargado correctamente.
+Iniciando tres hilos...
+
+[Hilo 1] Solicitando listado...
+
+========================================
+      ARCHIVOS EN FIUNAMFS
+========================================
+
+Nombre            Tamano            Cluster           
+--------------------------------------------------
+README.org        31126             6                 
+reutilizado.txt   43                5                 
+logo.png          126423            22                
+mensaje.jpg       254484            84                
+
+Total de archivos: 4
+
+[Hilo 2] Solicitando listado...
+
+========================================
+      ARCHIVOS EN FIUNAMFS
+========================================
+
+Nombre            Tamano            Cluster           
+--------------------------------------------------
+README.org        31126             6                 
+reutilizado.txt   43                5                 
+logo.png          126423            22                
+mensaje.jpg       254484            84                
+
+Total de archivos: 4
+
+[Hilo 3] Solicitando listado...
+
+========================================
+      ARCHIVOS EN FIUNAMFS
+========================================
+
+Nombre            Tamano            Cluster           
+--------------------------------------------------
+README.org        31126             6                 
+reutilizado.txt   43                5                 
+logo.png          126423            22                
+mensaje.jpg       254484            84                
+
+Total de archivos: 4
+
+Los tres hilos finalizaron correctamente.
+=== FIN DE LA PRUEBA ===

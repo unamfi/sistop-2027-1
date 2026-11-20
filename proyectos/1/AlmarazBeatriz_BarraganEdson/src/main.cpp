@@ -118,8 +118,47 @@ int main(int argc, char* argv[]) {
         } else {
             std::cerr << "No fue posible importar el archivo.\n";
         }
-    } else {
+        } else {
         std::cout << "No se solicito ninguna importacion.\n";
     }
-     return 0;
+
+    // Permitir eliminar logicamente un archivo de FiUnamFS.
+    std::cout << "\n=== ELIMINAR ARCHIVO ===\n";
+
+    std::string deleteName;
+
+    std::cout << "Escribe el nombre del archivo a eliminar: ";
+    std::getline(std::cin, deleteName);
+
+    if (!deleteName.empty()) {
+
+        // Confirmar la eliminacion para evitar errores.
+        std::string confirmation;
+
+        std::cout << "Estas seguro de eliminar '"
+                  << deleteName
+                  << "'? (s/n): ";
+
+        std::getline(std::cin, confirmation);
+
+        if (confirmation == "s" || confirmation == "S") {
+
+            if (fs.deleteFile(deleteName)) {
+                std::cout << "Eliminacion logica completada.\n";
+
+                // Mostrar el directorio actualizado.
+                fs.listFiles();
+            } else {
+                std::cerr << "No fue posible eliminar el archivo.\n";
+            }
+
+        } else {
+            std::cout << "Eliminacion cancelada.\n";
+        }
+
+    } else {
+        std::cout << "No se solicito ninguna eliminacion.\n";
+    }
+
+    return 0;
 }

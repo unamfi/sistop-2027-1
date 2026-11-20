@@ -19,8 +19,8 @@
 #include <algorithm>
 #include <filesystem>
 #include <vector>
-#include <cstdint>
 #include <ctime>
+#include <mutex>
 #include <string>
 
 //Abre la imagen binaria del sistema de archivos.
@@ -125,8 +125,15 @@ void FiUnamFS::printInfo() const {
         << superBlock.totalClusters
         << '\n';
 }
-
+    // Lectura protegida del directorio.
+// Evita que otros hilos modifiquen la imagen durante la lectura.
 void FiUnamFS::loadDirectory() {
+    std::lock_guard<std::mutex> lock(imageMutex);
+
+    loadDirectoryUnlocked();
+}
+
+void FiUnamFS::loadDirectoryUnlocked() {
     // Limpiar información previa
     files.clear();
 
@@ -229,6 +236,9 @@ void FiUnamFS::debugDirectory() const {
  * en memoria de forma tabulada.
  */
 void FiUnamFS::listFiles() const {
+
+   // Evitar que el directorio cambie mientras se listan los archivos.
+    std::lock_guard<std::mutex> lock(imageMutex);
     std::cout
         << "\n========================================\n";
 
@@ -271,6 +281,9 @@ bool FiUnamFS::exportFile(
     const std::string& filename,
     const std::string& destination
 ) {
+    // Proteger la exportacion frente a operaciones concurrentes.
+    std::lock_guard<std::mutex> lock(imageMutex);
+
     // Buscar el archivo en el directorio cargado.
     auto it = std::find_if(
         files.begin(),
@@ -365,6 +378,10 @@ bool FiUnamFS::importFile(
     const std::string& source,
     const std::string& filename
 ) {
+    // Evitar que otros hilos modifiquen la imagen
+    // mientras se realiza una importacion.
+    std::lock_guard<std::mutex> lock(imageMutex);
+
     // Comprobar que la imagen este abierta y sea valida.
     if (!image.is_open() || !validate()) {
         std::cerr << "Error: Imagen no valida o no abierta.\n";
@@ -686,11 +703,118 @@ bool FiUnamFS::importFile(
 
     // Actualizar el directorio cargado en memoria.
     image.clear();
-    loadDirectory();
+    loadDirectoryUnlocked();
 
     std::cout << "\nArchivo importado correctamente: "
               << filename << '\n';
 
     return true;
+}
+/**
+ * Elimina logicamente un archivo de FiUnamFS.
+ * Marca su entrada como libre sin borrar los datos fisicos.
+ */
+bool FiUnamFS::deleteFile(const std::string& filename) {
+
+    // Proteger la eliminacion frente a operaciones concurrentes.
+    std::lock_guard<std::mutex> lock(imageMutex);
+
+    // Comprobar que la imagen este abierta y sea valida.
+    if (!image.is_open() || !validate()) {
+        std::cerr << "Error: Imagen no valida o no abierta.\n";
+        return false;
+    }
+
+    // Buscar el archivo entre las entradas activas.
+    const auto it = std::find_if(
+        files.begin(),
+        files.end(),
+        [&](const DirectoryEntry& entry) {
+            return entry.filename == filename;
+        }
+    );
+
+    if (it == files.end()) {
+        std::cerr << "Error: Archivo no encontrado.\n";
+        return false;
+    }
+
+    // Calcular la posicion del directorio.
+    const uint64_t directoryStart = superBlock.clusterSize;
+    const uint64_t directorySize =
+        static_cast<uint64_t>(superBlock.directoryClusters) *
+        superBlock.clusterSize;
+
+    const uint64_t entrySize = 64;
+    const uint64_t totalEntries = directorySize / entrySize;
+
+    // Buscar la entrada fisica correspondiente al archivo.
+    for (uint64_t i = 0; i < totalEntries; ++i) {
+
+        const uint64_t offset =
+            directoryStart + i * entrySize;
+
+                char type = '\0';
+
+        image.clear();
+        image.seekg(static_cast<std::streamoff>(offset));
+
+        image.read(&type, 1);
+
+        if (!image) {
+            std::cerr << "Error: No se pudo leer el directorio.\n";
+            return false;
+        }
+
+        if (type != 'F') {
+            continue;
+        }
+
+        // Leer el nombre igual que en loadDirectory().
+        std::string currentName = readFixedString(image, 15);
+
+        if (!image) {
+            std::cerr << "Error: No se pudo leer el nombre.\n";
+            return false;
+        }
+
+        // Quitar los espacios de relleno.
+        const auto lastCharacter =
+            currentName.find_last_not_of(' ');
+
+        if (lastCharacter != std::string::npos) {
+            currentName.erase(lastCharacter + 1);
+        } else {
+            currentName.clear();
+        }
+
+        if (currentName == filename) {
+
+            // Cambiar el tipo de entrada de 'F' a '/'.
+            const char deletedType = '/';
+
+            image.clear();
+            image.seekp(static_cast<std::streamoff>(offset));
+            image.write(&deletedType, 1);
+            image.flush();
+
+            if (!image) {
+                std::cerr << "Error: No se pudo eliminar el archivo.\n";
+                return false;
+            }
+
+            // Actualizar el directorio en memoria.
+            image.clear();
+            loadDirectoryUnlocked();
+
+            std::cout << "Archivo eliminado logicamente: "
+                      << filename << '\n';
+
+            return true;
+        }
+    }
+
+    std::cerr << "Error: No se encontro la entrada del archivo.\n";
+    return false;
 }
 
