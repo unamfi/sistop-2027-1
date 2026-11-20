@@ -1,0 +1,22 @@
+# Punto de montaje de FUSE
+mnt/
+
+# Imagen de disco local
+fiunamfs.img
+
+# Archivos de Python y entornos virtuales
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+
+# Logs y archivos temporales de prueba
+*.log
+*.tmp
+*.png
+*.jpg
+*~
+
+# Archivos de editor / sistema operativo
+.vscode/
+.DS_Store
