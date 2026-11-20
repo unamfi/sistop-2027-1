@@ -17,3 +17,6 @@ build/
 
 # Logs
 *.log
+
+# Archivos exportados durante las pruebas
+salida/

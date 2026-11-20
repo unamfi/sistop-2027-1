@@ -39,3 +39,20 @@ std::string readFixedString(
 
     return result;
 }
+
+/**
+ * Escribe cuatro bytes consecutivos en formato little-endian.
+ */
+void writeLittleEndian32(std::fstream& file, uint32_t value) {
+    unsigned char bytes[4] = {
+        static_cast<unsigned char>(value & 0xFF),
+        static_cast<unsigned char>((value >> 8) & 0xFF),
+        static_cast<unsigned char>((value >> 16) & 0xFF),
+        static_cast<unsigned char>((value >> 24) & 0xFF)
+    };
+
+    file.write(
+        reinterpret_cast<const char*>(bytes),
+        4
+    );
+}

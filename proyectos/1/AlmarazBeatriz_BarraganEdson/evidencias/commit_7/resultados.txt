@@ -1,0 +1,70 @@
+COMMIT 7 - ELIMINACION LOGICA Y CONCURRENCIA
+EVIDENCIAS PARCIALES: ELIMINACION LOGICA
+
+PRUEBA 1: ELIMINACION LOGICA
+Archivo eliminado: prueba.txt
+Tamano: 43 bytes
+Cluster original: 5
+Resultado: Eliminacion exitosa.
+El directorio paso de 4 archivos a 3 archivos.
+
+PRUEBA 2: PERSISTENCIA
+Se cerro y volvio a ejecutar el programa.
+El archivo prueba.txt ya no aparecio en el directorio.
+Total de archivos: 3.
+Resultado: Persistencia verificada.
+
+PRUEBA 3: REUTILIZACION DEL ESPACIO
+Archivo de origen: prueba_importacion.txt
+Nombre importado: reutilizado.txt
+Tamano: 43 bytes
+Cluster asignado: 5
+Entrada del directorio: byte 2112
+Total de archivos: 4.
+Resultado: Se reutilizo correctamente el espacio liberado.
+
+OBSERVACIONES
+Las pruebas se realizaron sobre fiunamfs_pruebas.img.
+La imagen original fiunamfs.img no se modifico.
+
+PENDIENTE
+Implementacion y pruebas de concurrencia mediante hilos.
+
+## Prueba de concurrencia: importación y listados simultáneos
+
+Se ejecutaron tres hilos utilizando un mismo objeto FiUnamFS y un mutex compartido.
+
+- Hilo 1: importó el archivo `hilo_prueba.txt`.
+- Hilo 2: consultó el directorio.
+- Hilo 3: consultó el directorio.
+
+**Resultados obtenidos:**
+
+- Importación completada correctamente.
+- Archivo importado: `hilo_prueba.txt`.
+- Tamaño: 43 bytes.
+- Clúster utilizado: 209.
+- Entrada del directorio: byte 2240.
+- Ambos listados mostraron 5 archivos, incluyendo el archivo recién importado.
+- Los tres hilos finalizaron correctamente.
+- No se observaron bloqueos permanentes ni errores durante la ejecución.
+
+**Conclusión:** La prueba permitió verificar el funcionamiento conjunto de una operación de escritura y dos operaciones de lectura ejecutadas mediante `std::thread`, con acceso sincronizado mediante `std::mutex`.
+
+## Prueba de concurrencia: eliminación lógica y listados simultáneos
+
+Se ejecutaron tres hilos sobre un mismo objeto FiUnamFS:
+
+- Hilo 1: eliminación lógica de `hilo_prueba.txt`.
+- Hilo 2: consulta del directorio.
+- Hilo 3: consulta del directorio.
+
+**Resultados obtenidos:**
+
+- El archivo `hilo_prueba.txt` fue eliminado lógicamente.
+- Ambos hilos de lectura mostraron cuatro archivos.
+- El archivo eliminado dejó de aparecer en los listados.
+- Los tres hilos finalizaron correctamente.
+- No se observaron bloqueos permanentes ni errores durante la ejecución.
+
+**Conclusión:** La prueba permitió comprobar el funcionamiento conjunto de una operación de eliminación lógica y dos consultas al directorio, utilizando `std::thread` y sincronización mediante `std::mutex`.

@@ -15,18 +15,25 @@
 #include "../include/FiUnamFS.h"
 
 #include <iostream>
-
-int main() {
+#include <string>
+int main(int argc, char* argv[]) {
     // Instancia principal del sistema de archivos
     FiUnamFS fs;
 
     std::cout << "Abriendo imagen FiUnamFS...\n";
 
     // Intentar abrir la imagen
-    if (!fs.openImage("../fiunamfs.img")){
-        std::cerr
-            << "Error: No se pudo abrir fiunamfs.img\n";
+    // Utilizar la imagen indicada por el usuario.
+    // Si no se proporciona una ruta, abrir la imagen original.
+    std::string imagePath = "../fiunamfs.img";
 
+    if (argc > 1) {
+        imagePath = argv[1];
+    }
+
+    if (!fs.openImage(imagePath)) {
+        std::cerr << "Error: No se pudo abrir la imagen: "
+                << imagePath << '\n';
         return 1;
     }
 
@@ -64,6 +71,94 @@ int main() {
 
     // Mostrar los archivos detectados (salida para depuración).
     //fs.debugDirectory();
+
+   
+    // Permitir al usuario elegir el archivo que desea exportar.
+    std::cout << "\n=== EXPORTAR ARCHIVO ===\n";
+
+    std::string filename;
+
+    std::cout << "Escribe el nombre del archivo a exportar: ";
+    std::getline(std::cin, filename);
+
+    if (!filename.empty()) {
+        // Guardar el archivo en la carpeta de salida.
+        std::string destination = "salida/" + filename;
+
+        if (fs.exportFile(filename, destination)) {
+            std::cout << "Exportacion completada.\n";
+        } else {
+            std::cerr << "No fue posible exportar el archivo.\n";
+        }
+    } else {
+        std::cout << "No se ingreso ningun archivo.\n";
+    }
+
+
+   
+        // Permitir importar un archivo desde Windows hacia FiUnamFS.
+    std::cout << "\n=== IMPORTAR ARCHIVO ===\n";
+
+    std::string source;
+
+    std::cout << "Escribe la ruta del archivo que deseas importar: ";
+    std::getline(std::cin, source);
+
+    if (!source.empty()) {
+        std::string importName;
+
+        std::cout << "Nombre que tendra dentro de FiUnamFS: ";
+        std::getline(std::cin, importName);
+
+        if (fs.importFile(source, importName)) {
+            std::cout << "Importacion completada.\n";
+
+            // Mostrar el directorio actualizado.
+            fs.listFiles();
+        } else {
+            std::cerr << "No fue posible importar el archivo.\n";
+        }
+        } else {
+        std::cout << "No se solicito ninguna importacion.\n";
+    }
+
+    // Permitir eliminar logicamente un archivo de FiUnamFS.
+    std::cout << "\n=== ELIMINAR ARCHIVO ===\n";
+
+    std::string deleteName;
+
+    std::cout << "Escribe el nombre del archivo a eliminar: ";
+    std::getline(std::cin, deleteName);
+
+    if (!deleteName.empty()) {
+
+        // Confirmar la eliminacion para evitar errores.
+        std::string confirmation;
+
+        std::cout << "Estas seguro de eliminar '"
+                  << deleteName
+                  << "'? (s/n): ";
+
+        std::getline(std::cin, confirmation);
+
+        if (confirmation == "s" || confirmation == "S") {
+
+            if (fs.deleteFile(deleteName)) {
+                std::cout << "Eliminacion logica completada.\n";
+
+                // Mostrar el directorio actualizado.
+                fs.listFiles();
+            } else {
+                std::cerr << "No fue posible eliminar el archivo.\n";
+            }
+
+        } else {
+            std::cout << "Eliminacion cancelada.\n";
+        }
+
+    } else {
+        std::cout << "No se solicito ninguna eliminacion.\n";
+    }
 
     return 0;
 }
